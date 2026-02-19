@@ -1,0 +1,18 @@
+# GeoPackage files
+*.gpkg
+*.gpkg-wal
+*.gpkg-shm
+
+
+
+# Python virtual environment
+.venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/cache/
