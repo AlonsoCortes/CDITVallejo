@@ -2,7 +2,8 @@
 *.gpkg
 *.gpkg-wal
 *.gpkg-shm
-
+# Qgis files
+*.qmd
 
 
 # Python virtual environment

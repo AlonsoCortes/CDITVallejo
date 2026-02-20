@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geovisor CDIT Vallejo · Censo 2020</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* ── Reset & base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      background: #f0f2f5;
+      color: #212529;
+    }
+
+    /* ── Header ──────────────────────────────────────── */
+    header {
+      background: #0f2942;
+      color: #fff;
+      padding: 0 16px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,.35);
+      z-index: 1100;
+    }
+    header .logo {
+      width: 32px; height: 32px;
+      background: #1e6fba;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 15px; font-weight: 600; }
+    header p  { font-size: 11px; opacity: .7; margin-top: 1px; }
+
+    /* ── Layout ──────────────────────────────────────── */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Shared panel styles ─────────────────────────── */
+    .panel {
+      background: #fff;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .panel::-webkit-scrollbar { width: 5px; }
+    .panel::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+    .panel-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: #6c757d;
+      padding: 10px 12px 6px;
+      border-bottom: 1px solid #e9ecef;
+      position: sticky; top: 0;
+      background: #fff;
+      z-index: 2;
+    }
+
+    /* ── Column 1 · Layers ───────────────────────────── */
+    #panel-layers {
+      width: 230px;
+      border-right: 1px solid #dee2e6;
+    }
+
+    .var-group { border-bottom: 1px solid #f0f1f3; }
+
+    .var-group-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #343a40;
+      padding: 7px 12px;
+      background: #f8f9fa;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+    .var-group-title:hover { background: #e9ecef; }
+    .var-group-title .arrow {
+      font-size: 9px;
+      transition: transform .2s;
+      color: #6c757d;
+    }
+    .var-group-title.collapsed .arrow { transform: rotate(-90deg); }
+
+    .var-list { padding: 2px 0; }
+
+    .var-item {
+      display: flex;
+      align-items: center;
+      padding: 5px 12px 5px 22px;
+      cursor: pointer;
+      gap: 8px;
+      transition: background .12s;
+      line-height: 1.35;
+    }
+    .var-item:hover { background: #eef6ff; }
+    .var-item.active {
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-weight: 600;
+    }
+    .var-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #ced4da;
+      flex-shrink: 0;
+    }
+    .var-item.active .var-dot { background: #2563eb; }
+
+    /* Point-layer toggles */
+    .pt-section {
+      padding: 8px 12px 12px;
+    }
+    .pt-layer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      cursor: pointer;
+    }
+    .pt-layer input[type="checkbox"] {
+      width: 14px; height: 14px; cursor: pointer; accent-color: #2563eb;
+    }
+    .pt-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .pt-legend-detail {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-top: 6px;
+      padding-left: 22px;
+    }
+    .pt-legend-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: #6c757d;
+    }
+
+    /* ── Column 2 · Map ──────────────────────────────── */
+    #map-container {
+      flex: 1;
+      position: relative;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── Legend overlay ──────────────────────────────── */
+    .map-legend {
+      position: absolute;
+      bottom: 30px;
+      right: 10px;
+      background: rgba(255,255,255,.96);
+      border-radius: 7px;
+      padding: 10px 13px 10px;
+      z-index: 999;
+      box-shadow: 0 2px 10px rgba(0,0,0,.18);
+      min-width: 150px;
+      pointer-events: none;
+    }
+    .legend-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 7px;
+      line-height: 1.3;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 3px;
+    }
+    .legend-swatch {
+      width: 18px; height: 12px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .legend-label { font-size: 10px; color: #4b5563; }
+
+    /* ── Loading overlay ─────────────────────────────── */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,.88);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      gap: 12px;
+    }
+    .spinner {
+      width: 38px; height: 38px;
+      border: 4px solid #dee2e6;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin .75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 13px; color: #6c757d; }
+
+    /* ── Column 3 · Stats ────────────────────────────── */
+    #panel-stats {
+      width: 275px;
+      border-left: 1px solid #dee2e6;
+    }
+
+    .stats-varname {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0f2942;
+      padding: 9px 12px;
+      background: #eff6ff;
+      border-bottom: 1px solid #bfdbfe;
+      line-height: 1.35;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 10px 12px 4px;
+    }
+    .stat-card {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 7px 9px;
+    }
+    .stat-card.wide { grid-column: 1 / -1; }
+    .stat-lbl {
+      font-size: 10px;
+      color: #6c757d;
+      margin-bottom: 1px;
+    }
+    .stat-val {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+      line-height: 1.2;
+    }
+    .stat-val.sm { font-size: 13px; }
+
+    .chart-wrap {
+      padding: 6px 12px 12px;
+    }
+    .chart-lbl {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #6c757d;
+      margin-bottom: 6px;
+    }
+    .chart-canvas-wrap {
+      position: relative;
+      height: 160px;
+    }
+
+    /* Placeholder when no variable selected */
+    .stats-placeholder {
+      padding: 24px 12px;
+      color: #adb5bd;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    /* Leaflet tooltip tweak */
+    .leaflet-tooltip {
+      font-size: 12px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">V</div>
+  <div>
+    <h1>Geovisor CDIT Vallejo</h1>
+    <p>Censo de Población y Vivienda 2020 &nbsp;·&nbsp; Nivel manzana</p>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ── Column 1 · Capas ── -->
+  <div id="panel-layers" class="panel">
+    <div class="panel-title">Variables del Censo</div>
+    <div id="var-groups"></div>
+
+    <div class="panel-title" style="margin-top:4px;">Capas adicionales</div>
+    <div class="pt-section">
+
+      <!-- PILARES -->
+      <label class="pt-layer">
+        <input type="checkbox" id="tog-pilares" checked />
+        <span class="pt-dot" style="background:#7c3aed;"></span>
+        <span>PILARES</span>
+      </label>
+
+      <!-- CDIT Vallejo -->
+      <label class="pt-layer">
+        <input type="checkbox" id="tog-cdit" checked />
+        <img src="https://gobierno.cdmx.gob.mx/wp-content/uploads/2021/11/iconos-35.png"
+             style="width:18px;height:18px;object-fit:contain;flex-shrink:0;" />
+        <span>CDIT Vallejo-i</span>
+      </label>
+
+      <!-- Estaciones -->
+      <label class="pt-layer">
+        <input type="checkbox" id="tog-estaciones" checked />
+        <span class="pt-dot" style="background:#059669;"></span>
+        <span>Transporte público</span>
+      </label>
+      <div class="pt-legend-detail" id="estaciones-legend">
+        <div class="pt-legend-row">
+          <span class="pt-dot" style="width:8px;height:8px;background:#dc2626;"></span> CETRAM
+        </div>
+        <div class="pt-legend-row">
+          <span class="pt-dot" style="width:8px;height:8px;background:#1d4ed8;"></span> Tren Suburbano
+        </div>
+        <div class="pt-legend-row">
+          <span class="pt-dot" style="width:8px;height:8px;background:#059669;"></span> Metrobús terminal
+        </div>
+        <div class="pt-legend-row">
+          <span class="pt-dot" style="width:8px;height:8px;background:#10b981;"></span> Metrobús intermedia
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Column 2 · Mapa ── -->
+  <div id="map-container">
+    <div id="map"></div>
+
+    <div class="map-legend" id="map-legend">
+      <div class="legend-title" id="legend-title">—</div>
+      <div id="legend-items"></div>
+    </div>
+
+    <div class="loading-overlay" id="loading">
+      <div class="spinner"></div>
+      <span class="loading-text">Cargando datos…</span>
+    </div>
+  </div>
+
+  <!-- ── Column 3 · Estadísticos ── -->
+  <div id="panel-stats" class="panel">
+    <div class="panel-title">Estadísticos</div>
+    <div class="stats-varname" id="stats-varname">Seleccione una variable</div>
+
+    <div id="stats-content">
+      <div class="stats-placeholder">
+        Haz clic en una variable del panel izquierdo para ver su distribución.
+      </div>
+    </div>
+
+    <div class="chart-wrap" id="chart-section" style="display:none;">
+      <div class="chart-lbl">Distribución (histograma)</div>
+      <div class="chart-canvas-wrap">
+        <canvas id="hist-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .layout -->
+
+<script>
+// ─────────────────────────────────────────────────────────
+// CONFIGURACIÓN DE VARIABLES
+// ─────────────────────────────────────────────────────────
+// Cada variable: { label, pct }
+// pct: true  → valor 0-100, se formatea con "%" y 1 decimal
+// pct: false → valor absoluto, se formatea como entero
+const VARIABLES = {
+  "Población general": {
+    pob_total:  { label: "Población total",           pct: false },
+    pct_fem:    { label: "% Población femenina",      pct: true  },
+    pct_masc:   { label: "% Población masculina",     pct: true  },
+    den_pob_ha: { label: "Densidad de pob. (hab/ha)", pct: false },
+  },
+  "Grupos de edad": {
+    pct_15_24:  { label: "% Pob. 15–24 años",         pct: true },
+    pct_15_29:  { label: "% Pob. 15–29 años",         pct: true },
+    pct_15_64:  { label: "% Pob. 15–64 años (activa)",pct: true },
+    pct_30_49:  { label: "% Pob. 30–49 años",         pct: true },
+    pct_50_59:  { label: "% Pob. 50–59 años",         pct: true },
+    pct_60_mas: { label: "% Pob. 60 años y más",      pct: true },
+  },
+  "Educación": {
+    pct_alfabeta:        { label: "% Población alfabeta",         pct: true },
+    pct_analfabeta:      { label: "% Población analfabeta",       pct: true },
+    pct_sin_escolaridad: { label: "% Sin escolaridad",            pct: true },
+    pct_basica_comp:     { label: "% Educación básica completa",  pct: true },
+    pct_posbasica:       { label: "% Educación posbásica",        pct: true },
+    pct_media_sup:       { label: "% Educación media superior",   pct: true },
+    pct_superior:        { label: "% Educación superior",         pct: true },
+  },
+  "Actividad económica": {
+    pea:            { label: "PEA (número absoluto)",        pct: false },
+    pct_pea:        { label: "% PEA",                        pct: true  },
+    pct_ocupada:    { label: "% Población ocupada",          pct: true  },
+    pct_desocupada: { label: "% Población desocupada",       pct: true  },
+    pct_ocup_sup:   { label: "% Pob. ocup. sector superior", pct: true  },
+    pct_no_pea:     { label: "% Población no PEA",           pct: true  },
+  },
+  "Vivienda · servicios": {
+    viv_habitadas:        { label: "Viviendas habitadas",            pct: false },
+    pct_viv_deshabitadas: { label: "% Viviendas deshabitadas",       pct: true  },
+    pct_viv_elect:        { label: "% Viv. con electricidad",        pct: true  },
+    pct_viv_agua:         { label: "% Viv. con agua",                pct: true  },
+    pct_viv_drenaje:      { label: "% Viv. con drenaje",             pct: true  },
+    pct_viv_serv_comp:    { label: "% Viv. con servicios completos", pct: true  },
+    pct_viv_1dorm:        { label: "% Viv. de 1 dormitorio",         pct: true  },
+    pct_viv_hacinada:     { label: "% Viviendas hacinadas",          pct: true  },
+  },
+  "Vivienda · tecnología": {
+    pct_viv_comp:         { label: "% Viv. con computadora",               pct: true },
+    pct_viv_cel:          { label: "% Viv. con celular",                   pct: true },
+    pct_viv_internet:     { label: "% Viv. con internet",                  pct: true },
+    pct_viv_sin_comp_int: { label: "% Viv. sin computadora ni internet",   pct: true },
+  },
+};
+
+// Paleta YlOrRd (5 clases) + sin dato
+const PALETTE   = ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026'];
+const COLOR_ND  = '#d1d5db';
+
+// ─────────────────────────────────────────────────────────
+// ESTADO GLOBAL
+// ─────────────────────────────────────────────────────────
+let currentVar    = 'pob_total';
+let manzanasData  = null;
+let manzanasLayer = null;
+let pilaresLayer  = null;
+let estacLayer    = null;
+let cdtLayer      = null;
+let classBreaks   = [];
+let histChart     = null;
+
+// ─────────────────────────────────────────────────────────
+// MAPA
+// ─────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [19.482, -99.175],
+  zoom: 13,
+  zoomControl: true,
+  renderer: L.canvas({ tolerance: 2 }),
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 20,
+}).addTo(map);
+
+// ─────────────────────────────────────────────────────────
+// CARGA DE DATOS
+// ─────────────────────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [manzanas, pilares, estaciones, cdit] = await Promise.all([
+      fetch('datos/manzanas_censo_pct_zecditvallejo.geojson').then(r => r.json()),
+      fetch('datos/pilares.geojson').then(r => r.json()),
+      fetch('datos/estaciones_transporte_publico.geojson').then(r => r.json()),
+      fetch('datos/ubicacion_ceditvallejo.geojson').then(r => r.json()),
+    ]);
+
+    manzanasData = manzanas;
+
+    addPilares(pilares);
+    addEstaciones(estaciones);
+    addCDIT(cdit);
+    refreshChoropleth(currentVar);
+
+    if (manzanasLayer) {
+      map.fitBounds(manzanasLayer.getBounds(), { padding: [10, 10] });
+    }
+
+    document.getElementById('loading').style.display = 'none';
+  } catch (err) {
+    console.error(err);
+    document.getElementById('loading').innerHTML =
+      '<p style="color:#dc2626;padding:16px;text-align:center;">Error al cargar los datos.<br/>Revisa la consola del navegador.</p>';
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// COROPLÉTICO
+// ─────────────────────────────────────────────────────────
+function quantileBreaks(vals, n = 5) {
+  const sorted = vals.filter(v => v != null && !isNaN(v)).sort((a, b) => a - b);
+  if (!sorted.length) return [];
+  const bk = [sorted[0]];
+  for (let i = 1; i <= n; i++) {
+    const idx = Math.round((i / n) * sorted.length) - 1;
+    bk.push(sorted[Math.min(Math.max(idx, 0), sorted.length - 1)]);
+  }
+  return bk;
+}
+
+function colorFor(val, bk) {
+  if (val == null || isNaN(val)) return COLOR_ND;
+  for (let i = bk.length - 2; i >= 0; i--) {
+    if (val >= bk[i]) return PALETTE[Math.min(i, PALETTE.length - 1)];
+  }
+  return PALETTE[0];
+}
+
+function refreshChoropleth(varKey) {
+  if (manzanasLayer) { map.removeLayer(manzanasLayer); manzanasLayer = null; }
+  if (!manzanasData) return;
+
+  const vals = manzanasData.features.map(f => f.properties[varKey]);
+  classBreaks = quantileBreaks(vals);
+
+  manzanasLayer = L.geoJSON(manzanasData, {
+    style: f => ({
+      fillColor: colorFor(f.properties[varKey], classBreaks),
+      weight: 0.3,
+      color: '#9ca3af',
+      opacity: 0.5,
+      fillOpacity: 0.82,
+    }),
+    onEachFeature: (f, layer) => {
+      const v    = f.properties[varKey];
+      const lbl  = varLabel(varKey);
+      const isPct = varIsPct(varKey);
+      const fmt  = (v != null && !isNaN(v)) ? fmtVal(v, isPct) : 'Sin dato';
+      layer.bindTooltip(
+        `<strong>${lbl}</strong><br/>` +
+        `Valor: <strong>${fmt}</strong><br/>` +
+        `<span style="color:#6b7280;font-size:10px;">CVEGEO: ${f.properties.CVEGEO}</span>`,
+        { sticky: true }
+      );
+    },
+  }).addTo(map);
+
+  // Mantener puntos encima
+  if (pilaresLayer)  pilaresLayer.bringToFront();
+  if (estacLayer)    estacLayer.bringToFront();
+
+  refreshLegend(varKey, classBreaks);
+  refreshStats(varKey, vals);
+}
+
+// ─────────────────────────────────────────────────────────
+// LEYENDA
+// ─────────────────────────────────────────────────────────
+function refreshLegend(varKey, bk) {
+  document.getElementById('legend-title').textContent = varLabel(varKey);
+  const container = document.getElementById('legend-items');
+  container.innerHTML = '';
+  const isPct = varIsPct(varKey);
+
+  for (let i = 0; i < PALETTE.length; i++) {
+    const from = bk[i], to = bk[i + 1];
+    if (from == null || to == null) continue;
+    const el = document.createElement('div');
+    el.className = 'legend-item';
+    el.innerHTML = `<div class="legend-swatch" style="background:${PALETTE[i]};"></div>
+                    <span class="legend-label">${fmtVal(from, isPct)} – ${fmtVal(to, isPct)}</span>`;
+    container.appendChild(el);
+  }
+  // Sin dato
+  const nd = document.createElement('div');
+  nd.className = 'legend-item';
+  nd.innerHTML = `<div class="legend-swatch" style="background:${COLOR_ND};border:1px solid #d1d5db;"></div>
+                  <span class="legend-label">Sin dato</span>`;
+  container.appendChild(nd);
+}
+
+// ─────────────────────────────────────────────────────────
+// ESTADÍSTICOS
+// ─────────────────────────────────────────────────────────
+function refreshStats(varKey, vals) {
+  const lbl   = varLabel(varKey);
+  const isPct = varIsPct(varKey);
+  document.getElementById('stats-varname').textContent = lbl;
+
+  const valid = vals.filter(v => v != null && !isNaN(v));
+  const nullN = vals.length - valid.length;
+
+  if (!valid.length) {
+    document.getElementById('stats-content').innerHTML =
+      '<div class="stats-placeholder">Sin datos válidos para esta variable.</div>';
+    document.getElementById('chart-section').style.display = 'none';
+    return;
+  }
+
+  const sorted = [...valid].sort((a, b) => a - b);
+  const n      = sorted.length;
+  const min    = sorted[0];
+  const max    = sorted[n - 1];
+  const sum    = valid.reduce((s, v) => s + v, 0);
+  const mean   = sum / n;
+  const median = n % 2 === 0
+    ? (sorted[n/2 - 1] + sorted[n/2]) / 2
+    : sorted[Math.floor(n/2)];
+  const std    = Math.sqrt(valid.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
+
+  document.getElementById('stats-content').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-lbl">Mínimo</div>
+        <div class="stat-val sm">${fmtVal(min, isPct)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-lbl">Máximo</div>
+        <div class="stat-val sm">${fmtVal(max, isPct)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-lbl">Media</div>
+        <div class="stat-val">${fmtVal(mean, isPct)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-lbl">Mediana</div>
+        <div class="stat-val">${fmtVal(median, isPct)}</div>
+      </div>
+      <div class="stat-card wide">
+        <div class="stat-lbl">Desviación estándar</div>
+        <div class="stat-val">${fmtVal(std, isPct)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-lbl">Manzanas válidas</div>
+        <div class="stat-val sm">${n.toLocaleString('es-MX')}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-lbl">Sin dato</div>
+        <div class="stat-val sm">${nullN.toLocaleString('es-MX')}</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('chart-section').style.display = '';
+  drawHistogram(valid, isPct);
+}
+
+// ─────────────────────────────────────────────────────────
+// HISTOGRAMA
+// ─────────────────────────────────────────────────────────
+function drawHistogram(vals, isPct = false) {
+  const N_BINS = 15;
+  const sorted = [...vals].sort((a, b) => a - b);
+  const vmin   = sorted[0];
+  const vmax   = sorted[sorted.length - 1];
+
+  if (vmin === vmax) {
+    if (histChart) { histChart.destroy(); histChart = null; }
+    return;
+  }
+
+  const step = (vmax - vmin) / N_BINS;
+  const bins  = Array(N_BINS).fill(0);
+  const dec   = isPct ? 1 : 0;
+  const lbls  = Array.from({ length: N_BINS }, (_, i) => {
+    const v = vmin + i * step;
+    return isPct
+      ? v.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'
+      : fmtNum(v, dec);
+  });
+
+  for (const v of vals) {
+    const idx = Math.min(Math.floor((v - vmin) / step), N_BINS - 1);
+    bins[idx]++;
+  }
+
+  const ctx = document.getElementById('hist-canvas').getContext('2d');
+  if (histChart) { histChart.destroy(); }
+
+  histChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: lbls,
+      datasets: [{
+        data: bins,
+        backgroundColor: '#3b82f6',
+        borderColor: '#1d4ed8',
+        borderWidth: 0.5,
+        borderRadius: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => `Desde ${items[0].label}`,
+            label: item  => ` ${item.parsed.y.toLocaleString('es-MX')} manzanas`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { font: { size: 9 }, maxRotation: 45, maxTicksLimit: 7 },
+          grid: { display: false },
+        },
+        y: {
+          ticks: { font: { size: 9 } },
+          title: { display: true, text: 'Manzanas', font: { size: 9 } },
+        },
+      },
+    },
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+// CAPAS DE PUNTOS
+// ─────────────────────────────────────────────────────────
+function addCDIT(data) {
+  const cdtIcon = L.divIcon({
+    html: `<div style="
+        width:44px; height:44px;
+        background:#fff;
+        border:2.5px solid #111;
+        border-radius:50%;
+        box-shadow:0 2px 8px rgba(0,0,0,.45);
+        display:flex; align-items:center; justify-content:center;
+      ">
+        <img src="https://gobierno.cdmx.gob.mx/wp-content/uploads/2021/11/iconos-35.png"
+             style="width:32px;height:32px;object-fit:contain;" />
+      </div>`,
+    iconSize:    [44, 44],
+    iconAnchor:  [22, 22],
+    popupAnchor: [0, -26],
+    className:   '',
+  });
+
+  cdtLayer = L.geoJSON(data, {
+    pointToLayer: (f, ll) => L.marker(ll, { icon: cdtIcon, zIndexOffset: 99999 }),
+    onEachFeature: (f, layer) => {
+      layer.bindPopup(
+        `<strong style="color:#0f2942;">${f.properties.nombre}</strong>`
+      );
+    },
+  }).addTo(map);
+}
+
+function addPilares(data) {
+  pilaresLayer = L.geoJSON(data, {
+    pointToLayer: (f, ll) => L.circleMarker(ll, {
+      radius: 7,
+      fillColor: '#7c3aed',
+      color: '#fff',
+      weight: 1.5,
+      fillOpacity: 0.9,
+    }),
+    onEachFeature: (f, layer) => {
+      const p = f.properties;
+      layer.bindPopup(
+        `<strong style="color:#7c3aed;">🏛 PILAR: ${p.nombre}</strong><br/>` +
+        `<em>${p.alcaldia}</em><br/>` +
+        `${p.direccion}<br/>` +
+        `<span style="color:#6b7280;font-size:11px;">Horario: ${p.horario}</span>`
+      );
+    },
+  }).addTo(map);
+}
+
+function addEstaciones(data) {
+  const TIPOS = {
+    'CETRAM':          '#dc2626',
+    'Tren Suburbano':  '#1d4ed8',
+    'Terminal':        '#059669',
+    'Intermedia':      '#10b981',
+  };
+
+  estacLayer = L.geoJSON(data, {
+    pointToLayer: (f, ll) => L.circleMarker(ll, {
+      radius: 5,
+      fillColor: TIPOS[f.properties.tipo] ?? '#059669',
+      color: '#fff',
+      weight: 1.5,
+      fillOpacity: 0.9,
+    }),
+    onEachFeature: (f, layer) => {
+      const p    = f.properties;
+      const nom  = p.estacion || p.NOMBRE || '—';
+      const sist = p.SISTEMA  ? `Sistema: ${p.SISTEMA}<br/>` : '';
+      const ruta = p.ruta     ? `Ruta: ${p.ruta}<br/>`       : '';
+      layer.bindPopup(
+        `<strong>${p.tipo}</strong><br/>` +
+        `${nom}<br/>` + sist + ruta
+      );
+    },
+  }).addTo(map);
+}
+
+// ─────────────────────────────────────────────────────────
+// PANEL IZQUIERDO · VARIABLES
+// ─────────────────────────────────────────────────────────
+function buildVarPanel() {
+  const container = document.getElementById('var-groups');
+
+  for (const [group, vars] of Object.entries(VARIABLES)) {
+    const wrap  = document.createElement('div');
+    wrap.className = 'var-group';
+
+    const title = document.createElement('div');
+    title.className = 'var-group-title';
+    title.innerHTML = `${group} <span class="arrow">▼</span>`;
+
+    const list = document.createElement('div');
+    list.className = 'var-list';
+
+    title.addEventListener('click', () => {
+      const collapsed = list.style.display === 'none';
+      list.style.display = collapsed ? '' : 'none';
+      title.classList.toggle('collapsed', !collapsed);
+    });
+
+    for (const [key, def] of Object.entries(vars)) {
+      const item = document.createElement('div');
+      item.className = 'var-item' + (key === currentVar ? ' active' : '');
+      item.dataset.key = key;
+      item.innerHTML = `<span class="var-dot"></span><span>${def.label}</span>`;
+
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.var-item').forEach(el => el.classList.remove('active'));
+        item.classList.add('active');
+        currentVar = key;
+        refreshChoropleth(key);
+      });
+
+      list.appendChild(item);
+    }
+
+    wrap.appendChild(title);
+    wrap.appendChild(list);
+    container.appendChild(wrap);
+  }
+}
+
+// Toggles de capas de puntos
+document.getElementById('tog-cdit').addEventListener('change', function () {
+  this.checked ? cdtLayer?.addTo(map) : map.removeLayer(cdtLayer);
+});
+document.getElementById('tog-pilares').addEventListener('change', function () {
+  this.checked ? pilaresLayer?.addTo(map) : map.removeLayer(pilaresLayer);
+});
+document.getElementById('tog-estaciones').addEventListener('change', function () {
+  if (this.checked) {
+    estacLayer?.addTo(map);
+    document.getElementById('estaciones-legend').style.display = '';
+  } else {
+    map.removeLayer(estacLayer);
+    document.getElementById('estaciones-legend').style.display = 'none';
+  }
+});
+
+// ─────────────────────────────────────────────────────────
+// UTILIDADES
+// ─────────────────────────────────────────────────────────
+function varLabel(key) {
+  for (const vars of Object.values(VARIABLES)) {
+    if (vars[key]) return vars[key].label;
+  }
+  return key;
+}
+
+function varIsPct(key) {
+  for (const vars of Object.values(VARIABLES)) {
+    if (vars[key]) return vars[key].pct;
+  }
+  return false;
+}
+
+// Formatea un número: si isPct → "12.3 %" con 1 decimal; si no → entero
+function fmtNum(n, dec = 0) {
+  if (n == null || isNaN(n)) return 'N/D';
+  return n.toLocaleString('es-MX', {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
+  });
+}
+
+function fmtVal(val, isPct) {
+  if (val == null || isNaN(val)) return 'N/D';
+  if (isPct) {
+    return val.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
+  }
+  return val.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+// ─────────────────────────────────────────────────────────
+// ARRANQUE
+// ─────────────────────────────────────────────────────────
+buildVarPanel();
+loadAll();
+</script>
+</body>
+</html>
