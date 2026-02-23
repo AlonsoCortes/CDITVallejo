@@ -335,6 +335,11 @@
         "></span>
         <span>AGEBs (coroplético)</span>
       </label>
+      <div style="padding:2px 0 6px 22px; display:flex; align-items:center; gap:6px;">
+        <input type="range" id="opacity-agebs" min="0" max="100" value="82"
+               style="width:90px; cursor:pointer; accent-color:#2563eb;" />
+        <span id="opacity-agebs-val" style="font-size:10px; color:#6c757d; min-width:28px;">82%</span>
+      </div>
 
       <!-- PILARES -->
       <label class="pt-layer">
@@ -617,7 +622,9 @@ function refreshChoropleth(varKey) {
     ? sharedBreaks[group]
     : quantileBreaks(vals);
 
-  const togAgebs = document.getElementById('tog-agebs');
+  const togAgebs      = document.getElementById('tog-agebs');
+  const opacitySlider = document.getElementById('opacity-agebs');
+  const fillOpacity   = opacitySlider ? opacitySlider.value / 100 : 0.82;
 
   agebsLayer = L.geoJSON(agebsData, {
     style: f => ({
@@ -625,7 +632,7 @@ function refreshChoropleth(varKey) {
       weight: 1.2,
       color: '#1a1a1a',
       opacity: 0.7,
-      fillOpacity: 0.82,
+      fillOpacity,
     }),
     onEachFeature: (f, layer) => {
       const v    = f.properties[varKey];
@@ -963,6 +970,12 @@ document.getElementById('tog-agebs').addEventListener('change', function () {
   } else {
     if (agebsLayer) map.removeLayer(agebsLayer);
   }
+});
+
+document.getElementById('opacity-agebs').addEventListener('input', function () {
+  const val = this.value / 100;
+  document.getElementById('opacity-agebs-val').textContent = this.value + '%';
+  if (agebsLayer) agebsLayer.setStyle({ fillOpacity: val });
 });
 
 document.getElementById('tog-cdit').addEventListener('change', function () {
