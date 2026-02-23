@@ -415,9 +415,10 @@ const VARIABLES = {
     den_pob_ha: { label: "Densidad de pob. (hab/ha)", pct: false },
   },
   "Grupos de edad": {
-    pct_15_24:  { label: "% Pob. 15–24 años",         pct: true },
-    pct_15_29:  { label: "% Pob. 15–29 años",         pct: true },
-    pct_15_64:  { label: "% Pob. 15–64 años (activa)",pct: true },
+    pct_0_14:   { label: "% Pob. 0–14 años",          pct: true },
+    pct_15_17:  { label: "% Pob. 15–17 años",         pct: true },
+    pct_18_24:  { label: "% Pob. 18–24 años",         pct: true },
+    pct_25_29:  { label: "% Pob. 25–29 años",         pct: true },
     pct_30_49:  { label: "% Pob. 30–49 años",         pct: true },
     pct_50_59:  { label: "% Pob. 50–59 años",         pct: true },
     pct_60_mas: { label: "% Pob. 60 años y más",      pct: true },
@@ -461,6 +462,10 @@ const VARIABLES = {
 const PALETTE   = ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026'];
 const COLOR_ND  = '#d1d5db';
 
+// Grupos cuyas variables comparten la misma escala de color
+// para permitir comparación visual directa entre ellas.
+const SHARED_BREAKS_GROUPS = ["Grupos de edad"];
+
 // ─────────────────────────────────────────────────────────
 // ESTADO GLOBAL
 // ─────────────────────────────────────────────────────────
@@ -471,6 +476,7 @@ let pilaresLayer  = null;
 let estacLayer    = null;
 let cdtLayer      = null;
 let classBreaks   = [];
+let sharedBreaks  = {};   // { "Grupos de edad": [bk0, bk1, …, bk5] }
 let histChart     = null;
 
 // ─────────────────────────────────────────────────────────
@@ -502,6 +508,7 @@ async function loadAll() {
     ]);
 
     manzanasData = manzanas;
+    computeSharedBreaks();
 
     addPilares(pilares);
     addEstaciones(estaciones);
@@ -518,6 +525,33 @@ async function loadAll() {
     document.getElementById('loading').innerHTML =
       '<p style="color:#dc2626;padding:16px;text-align:center;">Error al cargar los datos.<br/>Revisa la consola del navegador.</p>';
   }
+}
+
+// ─────────────────────────────────────────────────────────
+// BREAKS COMPARTIDOS (para comparabilidad intra-grupo)
+// ─────────────────────────────────────────────────────────
+function computeSharedBreaks() {
+  for (const groupName of SHARED_BREAKS_GROUPS) {
+    const vars = VARIABLES[groupName];
+    if (!vars) continue;
+    // Reunir TODOS los valores de todas las variables del grupo
+    const pooled = [];
+    for (const varKey of Object.keys(vars)) {
+      for (const f of manzanasData.features) {
+        const v = f.properties[varKey];
+        if (v != null && !isNaN(v)) pooled.push(v);
+      }
+    }
+    sharedBreaks[groupName] = quantileBreaks(pooled);
+  }
+}
+
+// Devuelve el nombre del grupo al que pertenece una variable, o null
+function getGroupForVar(varKey) {
+  for (const [groupName, vars] of Object.entries(VARIABLES)) {
+    if (vars[varKey]) return groupName;
+  }
+  return null;
 }
 
 // ─────────────────────────────────────────────────────────
@@ -547,7 +581,12 @@ function refreshChoropleth(varKey) {
   if (!manzanasData) return;
 
   const vals = manzanasData.features.map(f => f.properties[varKey]);
-  classBreaks = quantileBreaks(vals);
+
+  // Usar breaks compartidos si la variable pertenece a un grupo comparativo
+  const group = getGroupForVar(varKey);
+  classBreaks = (group && sharedBreaks[group])
+    ? sharedBreaks[group]
+    : quantileBreaks(vals);
 
   manzanasLayer = L.geoJSON(manzanasData, {
     style: f => ({
