@@ -325,10 +325,28 @@
     <div class="panel-title" style="margin-top:4px;">Capas adicionales</div>
     <div class="pt-section">
 
+      <!-- AGEBs coroplético -->
+      <label class="pt-layer">
+        <input type="checkbox" id="tog-agebs" checked />
+        <span style="
+          width:16px; height:10px; border-radius:2px;
+          background:#fd8d3c; border:1px solid #555;
+          flex-shrink:0;
+        "></span>
+        <span>AGEBs (coroplético)</span>
+      </label>
+
       <!-- PILARES -->
       <label class="pt-layer">
         <input type="checkbox" id="tog-pilares" checked />
-        <span class="pt-dot" style="background:#7c3aed;"></span>
+        <span style="
+          width:16px; height:16px; border-radius:50%;
+          background:#7b1728; border:1.5px solid #fff;
+          box-shadow:0 1px 3px rgba(0,0,0,.35);
+          display:inline-flex; align-items:center; justify-content:center;
+          font-size:9px; font-weight:700; color:#fff;
+          flex-shrink:0; font-family:'Segoe UI',system-ui,sans-serif;
+        ">P</span>
         <span>PILARES</span>
       </label>
 
@@ -466,6 +484,17 @@ const COLOR_ND  = '#d1d5db';
 // para permitir comparación visual directa entre ellas.
 const SHARED_BREAKS_GROUPS = ["Grupos de edad"];
 
+// Mapeo de variable porcentual de grupo de edad → columna de valor absoluto
+const PCT_TO_ABS = {
+  pct_0_14:   'pob_0_14',
+  pct_15_17:  'pob_15_17',
+  pct_18_24:  'pob_18_24',
+  pct_25_29:  'pob_25_29',
+  pct_30_49:  'pob_30_49',
+  pct_50_59:  'pob_50_59',
+  pct_60_mas: 'pob_60_mas',
+};
+
 // ─────────────────────────────────────────────────────────
 // ESTADO GLOBAL
 // ─────────────────────────────────────────────────────────
@@ -588,12 +617,14 @@ function refreshChoropleth(varKey) {
     ? sharedBreaks[group]
     : quantileBreaks(vals);
 
+  const togAgebs = document.getElementById('tog-agebs');
+
   agebsLayer = L.geoJSON(agebsData, {
     style: f => ({
       fillColor: colorFor(f.properties[varKey], classBreaks),
-      weight: 0.3,
-      color: '#9ca3af',
-      opacity: 0.5,
+      weight: 1.2,
+      color: '#1a1a1a',
+      opacity: 0.7,
       fillOpacity: 0.82,
     }),
     onEachFeature: (f, layer) => {
@@ -601,14 +632,23 @@ function refreshChoropleth(varKey) {
       const lbl  = varLabel(varKey);
       const isPct = varIsPct(varKey);
       const fmt  = (v != null && !isNaN(v)) ? fmtVal(v, isPct) : 'Sin dato';
+      const absKey = PCT_TO_ABS[varKey];
+      const absLine = absKey ? (() => {
+        const absVal = f.properties[absKey];
+        const absFmt = (absVal != null && !isNaN(absVal)) ? fmtVal(absVal, false) : 'Sin dato';
+        return `Personas: <strong>${absFmt}</strong><br/>`;
+      })() : '';
       layer.bindTooltip(
         `<strong>${lbl}</strong><br/>` +
-        `Valor: <strong>${fmt}</strong><br/>` +
+        `Porcentaje: <strong>${fmt}</strong><br/>` +
+        absLine +
         `<span style="color:#6b7280;font-size:10px;">CVEGEO: ${f.properties.CVEGEO}</span>`,
         { sticky: true }
       );
     },
-  }).addTo(map);
+  });
+
+  if (togAgebs?.checked !== false) agebsLayer.addTo(map);
 
   // Mantener puntos encima
   if (pilaresLayer)  pilaresLayer.bringToFront();
@@ -814,17 +854,26 @@ function addCDIT(data) {
 
 function addPilares(data) {
   pilaresLayer = L.geoJSON(data, {
-    pointToLayer: (f, ll) => L.circleMarker(ll, {
-      radius: 7,
-      fillColor: '#7c3aed',
-      color: '#fff',
-      weight: 1.5,
-      fillOpacity: 0.9,
+    pointToLayer: (f, ll) => L.marker(ll, {
+      icon: L.divIcon({
+        className: '',
+        html: `<div style="
+          width:20px; height:20px; border-radius:50%;
+          background:#7b1728; border:2px solid #fff;
+          box-shadow:0 1px 4px rgba(0,0,0,.4);
+          display:flex; align-items:center; justify-content:center;
+          font-size:11px; font-weight:700; color:#fff;
+          font-family:'Segoe UI',system-ui,sans-serif;
+        ">P</div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        popupAnchor: [0, -12],
+      }),
     }),
     onEachFeature: (f, layer) => {
       const p = f.properties;
       layer.bindPopup(
-        `<strong style="color:#7c3aed;">🏛 PILAR: ${p.nombre}</strong><br/>` +
+        `<strong style="color:#7b1728;">🏛 PILAR: ${p.nombre}</strong><br/>` +
         `<em>${p.alcaldia}</em><br/>` +
         `${p.direccion}<br/>` +
         `<span style="color:#6b7280;font-size:11px;">Horario: ${p.horario}</span>`
@@ -907,7 +956,15 @@ function buildVarPanel() {
   }
 }
 
-// Toggles de capas de puntos
+// Toggles de capas
+document.getElementById('tog-agebs').addEventListener('change', function () {
+  if (this.checked) {
+    if (agebsLayer) agebsLayer.addTo(map);
+  } else {
+    if (agebsLayer) map.removeLayer(agebsLayer);
+  }
+});
+
 document.getElementById('tog-cdit').addEventListener('change', function () {
   this.checked ? cdtLayer?.addTo(map) : map.removeLayer(cdtLayer);
 });
