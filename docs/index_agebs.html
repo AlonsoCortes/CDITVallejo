@@ -319,111 +319,123 @@
 
   <!-- ── Column 1 · Capas ── -->
   <div id="panel-layers" class="panel">
-    <div class="panel-title">Variables del Censo</div>
-    <div id="var-groups"></div>
 
-    <div class="panel-title" style="margin-top:4px;">Capas adicionales</div>
-    <div class="pt-section">
-
-      <!-- AGEBs coroplético -->
-      <label class="pt-layer">
-        <input type="checkbox" id="tog-agebs" checked />
-        <span style="
-          width:16px; height:10px; border-radius:2px;
-          background:#fd8d3c; border:1px solid #555;
-          flex-shrink:0;
-        "></span>
-        <span>AGEBs (coroplético)</span>
-      </label>
-      <div style="padding:2px 0 6px 22px; display:flex; align-items:center; gap:6px;">
-        <input type="range" id="opacity-agebs" min="0" max="100" value="82"
-               style="width:90px; cursor:pointer; accent-color:#2563eb;" />
-        <span id="opacity-agebs-val" style="font-size:10px; color:#6c757d; min-width:28px;">82%</span>
-      </div>
-
-      <!-- Unidades económicas CDIT -->
-      <label class="pt-layer">
-        <input type="checkbox" id="tog-ue" checked />
-        <span class="pt-dot" style="background:#6366f1;"></span>
-        <span>Unidades econ&oacute;micas</span>
-      </label>
-      <div class="pt-legend-detail" id="ue-legend">
-        <label class="pt-legend-row" style="cursor:pointer;">
-          <input type="checkbox" id="ue-apoyo" checked style="width:12px;height:12px;accent-color:#f59e0b;cursor:pointer;flex-shrink:0;" />
-          <span class="pt-dot" style="width:8px;height:8px;background:#f59e0b;"></span>
-          Apoyo a negocios y emprendimiento
-        </label>
-        <label class="pt-legend-row" style="cursor:pointer;">
-          <input type="checkbox" id="ue-diseno" checked style="width:12px;height:12px;accent-color:#8b5cf6;cursor:pointer;flex-shrink:0;" />
-          <span class="pt-dot" style="width:8px;height:8px;background:#8b5cf6;"></span>
-          Dise&ntilde;o y econom&iacute;a creativa
-        </label>
-        <label class="pt-legend-row" style="cursor:pointer;">
-          <input type="checkbox" id="ue-educacion" checked style="width:12px;height:12px;accent-color:#3b82f6;cursor:pointer;flex-shrink:0;" />
-          <span class="pt-dot" style="width:8px;height:8px;background:#3b82f6;"></span>
-          Educaci&oacute;n y capacitaci&oacute;n
-        </label>
-        <label class="pt-legend-row" style="cursor:pointer;">
-          <input type="checkbox" id="ue-manufactura" checked style="width:12px;height:12px;accent-color:#ef4444;cursor:pointer;flex-shrink:0;" />
-          <span class="pt-dot" style="width:8px;height:8px;background:#ef4444;"></span>
-          Manufactura tecnol&oacute;gica e industria avanzada
-        </label>
-        <label class="pt-legend-row" style="cursor:pointer;">
-          <input type="checkbox" id="ue-servicios" checked style="width:12px;height:12px;accent-color:#14b8a6;cursor:pointer;flex-shrink:0;" />
-          <span class="pt-dot" style="width:8px;height:8px;background:#14b8a6;"></span>
-          Servicios profesionales, cient&iacute;ficos y t&eacute;cnicos
-        </label>
-        <label class="pt-legend-row" style="cursor:pointer;">
-          <input type="checkbox" id="ue-tecnologia" checked style="width:12px;height:12px;accent-color:#6366f1;cursor:pointer;flex-shrink:0;" />
-          <span class="pt-dot" style="width:8px;height:8px;background:#6366f1;"></span>
-          Tecnolog&iacute;a, inform&aacute;tica y telecomunicaciones
-        </label>
-      </div>
-
-      <!-- PILARES -->
-      <label class="pt-layer">
-        <input type="checkbox" id="tog-pilares" checked />
-        <span style="
-          width:16px; height:16px; border-radius:50%;
-          background:#7b1728; border:1.5px solid #fff;
-          box-shadow:0 1px 3px rgba(0,0,0,.35);
-          display:inline-flex; align-items:center; justify-content:center;
-          font-size:9px; font-weight:700; color:#fff;
-          flex-shrink:0; font-family:'Segoe UI',system-ui,sans-serif;
-        ">P</span>
-        <span>PILARES</span>
-      </label>
-
-      <!-- CDIT Vallejo -->
-      <label class="pt-layer">
-        <input type="checkbox" id="tog-cdit" checked />
-        <img src="https://gobierno.cdmx.gob.mx/wp-content/uploads/2021/11/iconos-35.png"
-             style="width:18px;height:18px;object-fit:contain;flex-shrink:0;" />
-        <span>CDIT Vallejo-i</span>
-      </label>
-
-      <!-- Estaciones -->
-      <label class="pt-layer">
-        <input type="checkbox" id="tog-estaciones" checked />
-        <span class="pt-dot" style="background:#059669;"></span>
-        <span>Transporte p&uacute;blico</span>
-      </label>
-      <div class="pt-legend-detail" id="estaciones-legend">
-        <div class="pt-legend-row">
-          <img src="datos/logo_metro_cdmx.svg" style="width:12px;height:12px;object-fit:contain;flex-shrink:0;" /> Metro STC
-        </div>
-        <div class="pt-legend-row">
-          <img src="datos/logo_metrobus_cdmx.svg" style="width:12px;height:12px;object-fit:contain;flex-shrink:0;" /> Metrob&uacute;s
-        </div>
-        <div class="pt-legend-row">
-          <span class="pt-dot" style="width:8px;height:8px;background:#dc2626;"></span> CETRAM
-        </div>
-        <div class="pt-legend-row">
-          <span class="pt-dot" style="width:8px;height:8px;background:#1d4ed8;"></span> Tren Suburbano
-        </div>
-      </div>
-
+    <!-- ── Sección 1: Capas base ── -->
+    <div class="var-group-title" id="hdr-capas-base">
+      Capas base <span class="arrow">▼</span>
     </div>
+    <div id="section-capas-base">
+      <div class="pt-section">
+
+        <!-- AGEBs coroplético -->
+        <label class="pt-layer">
+          <input type="checkbox" id="tog-agebs" />
+          <span style="
+            width:16px; height:10px; border-radius:2px;
+            background:#fd8d3c; border:1px solid #555;
+            flex-shrink:0;
+          "></span>
+          <span>AGEBs (coroplético)</span>
+        </label>
+        <div style="padding:2px 0 6px 22px; display:flex; align-items:center; gap:6px;">
+          <input type="range" id="opacity-agebs" min="0" max="100" value="82"
+                 style="width:90px; cursor:pointer; accent-color:#2563eb;" />
+          <span id="opacity-agebs-val" style="font-size:10px; color:#6c757d; min-width:28px;">82%</span>
+        </div>
+
+        <!-- Unidades económicas CDIT -->
+        <label class="pt-layer">
+          <input type="checkbox" id="tog-ue" checked />
+          <span class="pt-dot" style="background:#6366f1;"></span>
+          <span>Unidades econ&oacute;micas</span>
+        </label>
+        <div class="pt-legend-detail" id="ue-legend">
+          <label class="pt-legend-row" style="cursor:pointer;">
+            <input type="checkbox" id="ue-apoyo" checked style="width:12px;height:12px;accent-color:#f59e0b;cursor:pointer;flex-shrink:0;" />
+            <span class="pt-dot" style="width:8px;height:8px;background:#f59e0b;"></span>
+            Apoyo a negocios y emprendimiento
+          </label>
+          <label class="pt-legend-row" style="cursor:pointer;">
+            <input type="checkbox" id="ue-diseno" checked style="width:12px;height:12px;accent-color:#8b5cf6;cursor:pointer;flex-shrink:0;" />
+            <span class="pt-dot" style="width:8px;height:8px;background:#8b5cf6;"></span>
+            Dise&ntilde;o y econom&iacute;a creativa
+          </label>
+          <label class="pt-legend-row" style="cursor:pointer;">
+            <input type="checkbox" id="ue-educacion" checked style="width:12px;height:12px;accent-color:#3b82f6;cursor:pointer;flex-shrink:0;" />
+            <span class="pt-dot" style="width:8px;height:8px;background:#3b82f6;"></span>
+            Educaci&oacute;n y capacitaci&oacute;n
+          </label>
+          <label class="pt-legend-row" style="cursor:pointer;">
+            <input type="checkbox" id="ue-manufactura" checked style="width:12px;height:12px;accent-color:#ef4444;cursor:pointer;flex-shrink:0;" />
+            <span class="pt-dot" style="width:8px;height:8px;background:#ef4444;"></span>
+            Manufactura tecnol&oacute;gica e industria avanzada
+          </label>
+          <label class="pt-legend-row" style="cursor:pointer;">
+            <input type="checkbox" id="ue-servicios" checked style="width:12px;height:12px;accent-color:#14b8a6;cursor:pointer;flex-shrink:0;" />
+            <span class="pt-dot" style="width:8px;height:8px;background:#14b8a6;"></span>
+            Servicios profesionales, cient&iacute;ficos y t&eacute;cnicos
+          </label>
+          <label class="pt-legend-row" style="cursor:pointer;">
+            <input type="checkbox" id="ue-tecnologia" checked style="width:12px;height:12px;accent-color:#6366f1;cursor:pointer;flex-shrink:0;" />
+            <span class="pt-dot" style="width:8px;height:8px;background:#6366f1;"></span>
+            Tecnolog&iacute;a, inform&aacute;tica y telecomunicaciones
+          </label>
+        </div>
+
+        <!-- PILARES -->
+        <label class="pt-layer">
+          <input type="checkbox" id="tog-pilares" checked />
+          <span style="
+            width:16px; height:16px; border-radius:50%;
+            background:#7b1728; border:1.5px solid #fff;
+            box-shadow:0 1px 3px rgba(0,0,0,.35);
+            display:inline-flex; align-items:center; justify-content:center;
+            font-size:9px; font-weight:700; color:#fff;
+            flex-shrink:0; font-family:'Segoe UI',system-ui,sans-serif;
+          ">P</span>
+          <span>PILARES</span>
+        </label>
+
+        <!-- CDIT Vallejo -->
+        <label class="pt-layer">
+          <input type="checkbox" id="tog-cdit" checked />
+          <img src="https://gobierno.cdmx.gob.mx/wp-content/uploads/2021/11/iconos-35.png"
+               style="width:18px;height:18px;object-fit:contain;flex-shrink:0;" />
+          <span>CDIT Vallejo-i</span>
+        </label>
+
+        <!-- Estaciones -->
+        <label class="pt-layer">
+          <input type="checkbox" id="tog-estaciones" checked />
+          <span class="pt-dot" style="background:#059669;"></span>
+          <span>Transporte p&uacute;blico</span>
+        </label>
+        <div class="pt-legend-detail" id="estaciones-legend">
+          <div class="pt-legend-row">
+            <img src="datos/logo_metro_cdmx.svg" style="width:12px;height:12px;object-fit:contain;flex-shrink:0;" /> Metro STC
+          </div>
+          <div class="pt-legend-row">
+            <img src="datos/logo_metrobus_cdmx.svg" style="width:12px;height:12px;object-fit:contain;flex-shrink:0;" /> Metrob&uacute;s
+          </div>
+          <div class="pt-legend-row">
+            <span class="pt-dot" style="width:8px;height:8px;background:#dc2626;"></span> CETRAM
+          </div>
+          <div class="pt-legend-row">
+            <span class="pt-dot" style="width:8px;height:8px;background:#1d4ed8;"></span> Tren Suburbano
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Sección 2: Capas temáticas ── -->
+    <div class="var-group-title" id="hdr-capas-tematicas" style="border-top: 2px solid #dee2e6;">
+      Capas tem&aacute;ticas <span class="arrow">▼</span>
+    </div>
+    <div id="section-capas-tematicas">
+      <div id="var-groups"></div>
+    </div>
+
   </div>
 
   <!-- ── Column 2 · Mapa ── -->
@@ -1155,6 +1167,19 @@ function fmtVal(val, isPct) {
   }
   return val.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
+
+// ─────────────────────────────────────────────────────────
+// COLAPSO DE SECCIONES PRINCIPALES DEL PANEL
+// ─────────────────────────────────────────────────────────
+['capas-base', 'capas-tematicas'].forEach(id => {
+  const hdr     = document.getElementById(`hdr-${id}`);
+  const content = document.getElementById(`section-${id}`);
+  hdr.addEventListener('click', () => {
+    const collapsed = content.style.display === 'none';
+    content.style.display = collapsed ? '' : 'none';
+    hdr.classList.toggle('collapsed', !collapsed);
+  });
+});
 
 // ─────────────────────────────────────────────────────────
 // ARRANQUE
