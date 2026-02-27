@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geovisor CDIT Vallejo · Censo 2020 · Hexágonos</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      background: #f0f2f5;
+      color: #212529;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #0f2942;
+      color: #fff;
+      padding: 0 16px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,.35);
+      z-index: 1100;
+    }
+    header .logo {
+      width: 32px; height: 32px;
+      background: #1e6fba;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 15px; font-weight: 600; }
+    header p  { font-size: 11px; opacity: .7; margin-top: 1px; }
+
+    /* ── Layout ── */
+    .layout { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Panels ── */
+    .panel { background: #fff; overflow-y: auto; flex-shrink: 0; }
+    .panel::-webkit-scrollbar { width: 5px; }
+    .panel::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+    .panel-title {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .6px; color: #6c757d;
+      padding: 10px 12px 6px; border-bottom: 1px solid #e9ecef;
+      position: sticky; top: 0; background: #fff; z-index: 2;
+    }
+
+    /* ── Column 1 · Capas ── */
+    #panel-layers { width: 230px; border-right: 1px solid #dee2e6; }
+
+    .var-group { border-bottom: 1px solid #f0f1f3; }
+    .var-group-title {
+      font-size: 11px; font-weight: 600; color: #343a40;
+      padding: 7px 12px; background: #f8f9fa; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      user-select: none;
+    }
+    .var-group-title:hover { background: #e9ecef; }
+    .var-group-title .arrow { font-size: 9px; transition: transform .2s; color: #6c757d; }
+    .var-group-title.collapsed .arrow { transform: rotate(-90deg); }
+    .var-list { padding: 2px 0; }
+    .var-item {
+      display: flex; align-items: center;
+      padding: 5px 12px 5px 22px; cursor: pointer;
+      gap: 8px; transition: background .12s; line-height: 1.35;
+    }
+    .var-item:hover { background: #eef6ff; }
+    .var-item.active { background: #dbeafe; color: #1d4ed8; font-weight: 600; }
+    .var-dot { width: 7px; height: 7px; border-radius: 50%; background: #ced4da; flex-shrink: 0; }
+    .var-item.active .var-dot { background: #2563eb; }
+
+    .pt-section { padding: 8px 12px 12px; }
+    .pt-layer { display: flex; align-items: center; gap: 8px; padding: 5px 0; cursor: pointer; }
+    .pt-layer input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; accent-color: #2563eb; }
+    .pt-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .pt-legend-detail { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; padding-left: 22px; }
+    .pt-legend-row { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #6c757d; }
+
+    /* ── Column 2 · Mapa ── */
+    #map-container { flex: 1; position: relative; }
+    #map { width: 100%; height: 100%; }
+
+    .map-legend {
+      position: absolute; bottom: 30px; right: 10px;
+      background: rgba(255,255,255,.96); border-radius: 7px;
+      padding: 10px 13px; z-index: 999; box-shadow: 0 2px 10px rgba(0,0,0,.18);
+      min-width: 150px; pointer-events: none;
+    }
+    .legend-title { font-size: 11px; font-weight: 700; color: #1e293b; margin-bottom: 7px; line-height: 1.3; }
+    .legend-item { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+    .legend-swatch { width: 18px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+    .legend-label { font-size: 10px; color: #4b5563; }
+
+    .loading-overlay {
+      position: absolute; inset: 0; background: rgba(255,255,255,.88);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 2000; gap: 12px;
+    }
+    .spinner {
+      width: 38px; height: 38px; border: 4px solid #dee2e6;
+      border-top-color: #2563eb; border-radius: 50%;
+      animation: spin .75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 13px; color: #6c757d; }
+
+    /* ── Column 3 · Stats ── */
+    #panel-stats { width: 275px; border-left: 1px solid #dee2e6; }
+
+    .stats-varname {
+      font-size: 13px; font-weight: 600; color: #0f2942;
+      padding: 9px 12px; background: #eff6ff;
+      border-bottom: 1px solid #bfdbfe; line-height: 1.35;
+    }
+
+    /* Entorno tabs */
+    .entorno-tabs { display: flex; border-bottom: 2px solid #e9ecef; background: #f8f9fa; }
+    .entorno-tab {
+      flex: 1; padding: 7px 4px; text-align: center;
+      font-size: 11px; font-weight: 600; color: #6c757d; cursor: pointer;
+      border-bottom: 3px solid transparent; margin-bottom: -2px;
+      transition: color .15s, border-color .15s; user-select: none;
+    }
+    .entorno-tab:hover { color: #1d4ed8; }
+    .entorno-tab.active { color: #1d4ed8; border-bottom-color: #2563eb; background: #fff; }
+
+    /* Badge de acumulación */
+    .scope-note {
+      font-size: 10px; color: #6b7280; font-style: italic;
+      padding: 5px 12px 0; line-height: 1.4;
+    }
+
+    .stats-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 6px; padding: 10px 12px 4px;
+    }
+    .stat-card {
+      background: #f8f9fa; border: 1px solid #e9ecef;
+      border-radius: 6px; padding: 7px 9px;
+    }
+    .stat-card.wide { grid-column: 1 / -1; }
+    .stat-lbl { font-size: 10px; color: #6c757d; margin-bottom: 1px; }
+    .stat-val { font-size: 16px; font-weight: 700; color: #1e293b; line-height: 1.2; }
+    .stat-val.sm { font-size: 13px; }
+
+    .chart-wrap { padding: 6px 12px 12px; }
+    .chart-lbl {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .5px; color: #6c757d; margin-bottom: 6px;
+    }
+    .chart-canvas-wrap { position: relative; height: 160px; }
+
+    .stats-placeholder { padding: 24px 12px; color: #adb5bd; font-size: 12px; text-align: center; }
+
+    .leaflet-tooltip { font-size: 12px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">V</div>
+  <div>
+    <h1>Geovisor CDIT Vallejo</h1>
+    <p>Censo de Poblaci&oacute;n y Vivienda 2020 &nbsp;&middot;&nbsp; Hex&aacute;gonos &middot; Entornos</p>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ── Column 1 · Capas ── -->
+  <div id="panel-layers" class="panel">
+
+    <div class="var-group-title" id="hdr-capas-base">
+      Capas base <span class="arrow">▼</span>
+    </div>
+    <div id="section-capas-base">
+      <div class="pt-section">
+
+        <!-- Hexágonos coroplético -->
+        <label class="pt-layer">
+          <input type="checkbox" id="tog-hex" />
+          <span style="width:16px;height:10px;border-radius:2px;background:#fd8d3c;border:1px solid #555;flex-shrink:0;"></span>
+          <span>Hex&aacute;gonos (coropl&eacute;tico)</span>
+        </label>
+        <div style="padding:2px 0 6px 22px;display:flex;align-items:center;gap:6px;">
+          <input type="range" id="opacity-hex" min="0" max="100" value="82"
+                 style="width:90px;cursor:pointer;accent-color:#2563eb;" />
+          <span id="opacity-hex-val" style="font-size:10px;color:#6c757d;min-width:28px;">82%</span>
+        </div>
+
+        <!-- Contornos de entorno -->
+        <label class="pt-layer">
+          <input type="checkbox" id="tog-entornos" checked />
+          <span style="width:16px;height:10px;border-radius:2px;background:transparent;border:2.5px solid #000;flex-shrink:0;"></span>
+          <span>Contornos de entorno</span>
+        </label>
+        <div class="pt-legend-detail">
+          <div class="pt-legend-row">
+            <span style="width:18px;height:4px;background:#000;flex-shrink:0;border-radius:1px;"></span>
+            Local
+          </div>
+          <div class="pt-legend-row">
+            <span style="width:18px;height:2.5px;background:#000;flex-shrink:0;border-radius:1px;"></span>
+            Barrio
+          </div>
+          <div class="pt-legend-row">
+            <span style="width:18px;height:1.5px;background:#000;flex-shrink:0;border-radius:1px;"></span>
+            Intermunicipal
+          </div>
+        </div>
+
+        <!-- Unidades económicas -->
+        <label class="pt-layer">
+          <input type="checkbox" id="tog-ue" checked />
+          <span class="pt-dot" style="background:#6366f1;"></span>
+          <span>Unidades econ&oacute;micas</span>
+        </label>
+        <div class="pt-legend-detail" id="ue-legend">
+          <label class="pt-legend-row" style="cursor:pointer;">
+            <input type="checkbox" id="ue-apoyo" checked style="width:12px;height:12px;accent-color:#f59e0b;cursor:pointer;flex-shrink:0;" />
+            <span class="pt-dot" style="width:8px;height:8px;background:#f59e0b;"></span>
+            Apoyo a negocios y emprendimiento
+          </label>
+          <label class="pt-legend-row" style="cursor:pointer;">
+            <input type="checkbox" id="ue-diseno" checked style="width:12px;height:12px;accent-color:#8b5cf6;cursor:pointer;flex-shrink:0;" />
+            <span class="pt-dot" style="width:8px;height:8px;background:#8b5cf6;"></span>
+            Dise&ntilde;o y econom&iacute;a creativa
+          </label>
+          <label class="pt-legend-row" style="cursor:pointer;">
+            <input type="checkbox" id="ue-educacion" checked style="width:12px;height:12px;accent-color:#3b82f6;cursor:pointer;flex-shrink:0;" />
+            <span class="pt-dot" style="width:8px;height:8px;background:#3b82f6;"></span>
+            Educaci&oacute;n y capacitaci&oacute;n
+          </label>
+          <label class="pt-legend-row" style="cursor:pointer;">
+            <input type="checkbox" id="ue-manufactura" checked style="width:12px;height:12px;accent-color:#ef4444;cursor:pointer;flex-shrink:0;" />
+            <span class="pt-dot" style="width:8px;height:8px;background:#ef4444;"></span>
+            Manufactura tecnol&oacute;gica e industria avanzada
+          </label>
+          <label class="pt-legend-row" style="cursor:pointer;">
+            <input type="checkbox" id="ue-servicios" checked style="width:12px;height:12px;accent-color:#14b8a6;cursor:pointer;flex-shrink:0;" />
+            <span class="pt-dot" style="width:8px;height:8px;background:#14b8a6;"></span>
+            Servicios profesionales, cient&iacute;ficos y t&eacute;cnicos
+          </label>
+          <label class="pt-legend-row" style="cursor:pointer;">
+            <input type="checkbox" id="ue-tecnologia" checked style="width:12px;height:12px;accent-color:#6366f1;cursor:pointer;flex-shrink:0;" />
+            <span class="pt-dot" style="width:8px;height:8px;background:#6366f1;"></span>
+            Tecnolog&iacute;a, inform&aacute;tica y telecomunicaciones
+          </label>
+        </div>
+
+        <!-- PILARES -->
+        <label class="pt-layer">
+          <input type="checkbox" id="tog-pilares" checked />
+          <span style="width:16px;height:16px;border-radius:50%;background:#7b1728;border:1.5px solid #fff;
+            box-shadow:0 1px 3px rgba(0,0,0,.35);display:inline-flex;align-items:center;justify-content:center;
+            font-size:9px;font-weight:700;color:#fff;flex-shrink:0;font-family:'Segoe UI',system-ui,sans-serif;">P</span>
+          <span>PILARES</span>
+        </label>
+
+        <!-- CDIT Vallejo -->
+        <label class="pt-layer">
+          <input type="checkbox" id="tog-cdit" checked />
+          <img src="https://gobierno.cdmx.gob.mx/wp-content/uploads/2021/11/iconos-35.png"
+               style="width:18px;height:18px;object-fit:contain;flex-shrink:0;" />
+          <span>CDIT Vallejo-i</span>
+        </label>
+
+        <!-- Estaciones -->
+        <label class="pt-layer">
+          <input type="checkbox" id="tog-estaciones" checked />
+          <span class="pt-dot" style="background:#059669;"></span>
+          <span>Transporte p&uacute;blico</span>
+        </label>
+        <div class="pt-legend-detail" id="estaciones-legend">
+          <div class="pt-legend-row">
+            <img src="datos/logo_metro_cdmx.svg" style="width:12px;height:12px;object-fit:contain;flex-shrink:0;" /> Metro STC
+          </div>
+          <div class="pt-legend-row">
+            <img src="datos/logo_metrobus_cdmx.svg" style="width:12px;height:12px;object-fit:contain;flex-shrink:0;" /> Metrob&uacute;s
+          </div>
+          <div class="pt-legend-row">
+            <span class="pt-dot" style="width:8px;height:8px;background:#dc2626;"></span> CETRAM
+          </div>
+          <div class="pt-legend-row">
+            <span class="pt-dot" style="width:8px;height:8px;background:#1d4ed8;"></span> Tren Suburbano
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Capas temáticas -->
+    <div class="var-group-title" id="hdr-capas-tematicas" style="border-top:2px solid #dee2e6;">
+      Capas tem&aacute;ticas <span class="arrow">▼</span>
+    </div>
+    <div id="section-capas-tematicas">
+      <div id="var-groups"></div>
+    </div>
+
+  </div>
+
+  <!-- ── Column 2 · Mapa ── -->
+  <div id="map-container">
+    <div id="map"></div>
+    <div class="map-legend" id="map-legend">
+      <div class="legend-title" id="legend-title">&mdash;</div>
+      <div id="legend-items"></div>
+    </div>
+    <div class="loading-overlay" id="loading">
+      <div class="spinner"></div>
+      <span class="loading-text">Cargando datos&hellip;</span>
+    </div>
+  </div>
+
+  <!-- ── Column 3 · Stats por entorno ── -->
+  <div id="panel-stats" class="panel">
+    <div class="panel-title">Estad&iacute;sticos por entorno</div>
+    <div class="stats-varname" id="stats-varname">Seleccione una variable</div>
+
+    <!-- Tabs de entorno (acumulativos) -->
+    <div class="entorno-tabs" id="entorno-tabs">
+      <div class="entorno-tab active" data-scope="Local">Local</div>
+      <div class="entorno-tab" data-scope="Barrio">Barrio</div>
+      <div class="entorno-tab" data-scope="Intermunicipal">Intermun.</div>
+    </div>
+    <div class="scope-note" id="scope-note">Solo hexágonos de entorno Local</div>
+
+    <div id="stats-content">
+      <div class="stats-placeholder">
+        Haz clic en una variable del panel izquierdo para ver estad&iacute;sticos.
+      </div>
+    </div>
+
+    <div class="chart-wrap" id="chart-section" style="display:none;">
+      <div class="chart-lbl">Comparaci&oacute;n entre entornos</div>
+      <div class="chart-canvas-wrap">
+        <canvas id="compare-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .layout -->
+
+<script>
+// ─────────────────────────────────────────────────────────
+// VARIABLES CENSUS
+// ─────────────────────────────────────────────────────────
+const VARIABLES = {
+  "Población general": {
+    pob_total:  { label: "Población total",           pct: false },
+    pct_fem:    { label: "% Población femenina",      pct: true  },
+    pct_masc:   { label: "% Población masculina",     pct: true  },
+    den_pob_ha: { label: "Densidad de pob. (hab/ha)", pct: false },
+  },
+  "Grupos de edad": {
+    pct_0_14:   { label: "% Pob. 0–14 años",     pct: true },
+    pct_15_17:  { label: "% Pob. 15–17 años",    pct: true },
+    pct_18_24:  { label: "% Pob. 18–24 años",    pct: true },
+    pct_25_29:  { label: "% Pob. 25–29 años",    pct: true },
+    pct_30_49:  { label: "% Pob. 30–49 años",    pct: true },
+    pct_50_59:  { label: "% Pob. 50–59 años",    pct: true },
+    pct_60_mas: { label: "% Pob. 60 años y más", pct: true },
+  },
+  "Educación": {
+    pct_alfabeta:        { label: "% Población alfabeta",        pct: true },
+    pct_analfabeta:      { label: "% Población analfabeta",      pct: true },
+    pct_sin_escolaridad: { label: "% Sin escolaridad",           pct: true },
+    pct_basica_comp:     { label: "% Ed. básica completa",       pct: true },
+    pct_posbasica:       { label: "% Educación posbásica",       pct: true },
+    pct_media_sup:       { label: "% Educación media superior",  pct: true },
+    pct_superior:        { label: "% Educación superior",        pct: true },
+  },
+  "Actividad económica": {
+    pea:            { label: "PEA (número absoluto)",        pct: false },
+    pct_pea:        { label: "% PEA",                        pct: true  },
+    pct_ocupada:    { label: "% Población ocupada",          pct: true  },
+    pct_desocupada: { label: "% Población desocupada",       pct: true  },
+    pct_ocup_sup:   { label: "% Pob. ocup. sector superior", pct: true  },
+    pct_no_pea:     { label: "% Población no PEA",           pct: true  },
+  },
+  "Vivienda · servicios": {
+    viv_habitadas:        { label: "Viviendas habitadas",            pct: false },
+    pct_viv_deshabitadas: { label: "% Viviendas deshabitadas",       pct: true  },
+    pct_viv_elect:        { label: "% Viv. con electricidad",        pct: true  },
+    pct_viv_agua:         { label: "% Viv. con agua",                pct: true  },
+    pct_viv_drenaje:      { label: "% Viv. con drenaje",             pct: true  },
+    pct_viv_serv_comp:    { label: "% Viv. con servicios completos", pct: true  },
+    pct_viv_1dorm:        { label: "% Viv. de 1 dormitorio",         pct: true  },
+    pct_viv_hacinada:     { label: "% Viviendas hacinadas",          pct: true  },
+  },
+  "Vivienda · tecnología": {
+    pct_viv_comp:         { label: "% Viv. con computadora",             pct: true },
+    pct_viv_cel:          { label: "% Viv. con celular",                 pct: true },
+    pct_viv_internet:     { label: "% Viv. con internet",                pct: true },
+    pct_viv_sin_comp_int: { label: "% Viv. sin computadora ni internet", pct: true },
+  },
+};
+
+// Mapeo pct_* → columna de conteo crudo en el GeoJSON
+const RAW_KEY = {
+  pct_fem: 'pob_fem', pct_masc: 'pob_masc',
+  pct_0_14: 'pob_0_14', pct_15_17: 'pob_15_17', pct_18_24: 'pob_18_24',
+  pct_25_29: 'pob_25_29', pct_30_49: 'pob_30_49', pct_50_59: 'pob_50_59', pct_60_mas: 'pob_60_mas',
+  pct_alfabeta: 'pob_alfabeta', pct_analfabeta: 'pob_analfabeta',
+  pct_sin_escolaridad: 'pob_sin_escolaridad', pct_basica_comp: 'pob_basica_comp',
+  pct_posbasica: 'pob_posbasica', pct_media_sup: 'pob_media_sup', pct_superior: 'pob_superior',
+  pct_pea: 'pea', pct_ocupada: 'pob_ocupada', pct_desocupada: 'pob_desocupada',
+  pct_ocup_sup: 'pob_ocup_sup', pct_no_pea: 'pob_no_pea',
+  pct_viv_deshabitadas: 'viv_deshabitadas', pct_viv_elect: 'viv_elect',
+  pct_viv_agua: 'viv_agua', pct_viv_drenaje: 'viv_drenaje', pct_viv_serv_comp: 'viv_serv_comp',
+  pct_viv_1dorm: 'viv_1dorm', pct_viv_hacinada: 'viv_hacinada', pct_viv_comp: 'viv_comp',
+  pct_viv_cel: 'viv_cel', pct_viv_internet: 'viv_internet', pct_viv_sin_comp_int: 'viv_sin_comp_int',
+};
+
+// Jerarquía de entornos – cada nivel incluye a todos los anteriores (acumulativo)
+const ENTORNO_ORDER = ['Local', 'Barrio', 'Intermunicipal'];
+const ENTORNO_NOTES = {
+  'Local':          'Solo hexágonos de entorno Local',
+  'Barrio':         'Hexágonos Local + Barrio',
+  'Intermunicipal': 'Todos los hexágonos (Local + Barrio + Intermunicipal)',
+};
+const ENTORNO_COLORS = { 'Local': '#2563eb', 'Barrio': '#7c3aed', 'Intermunicipal': '#db2777' };
+
+// Opción A: borde por entorno en el coroplético
+const ENTORNO_BORDER = {
+  'Local':          { color: '#9ca3af', weight: 0.5, opacity: 0.7 },
+  'Barrio':         { color: '#9ca3af', weight: 0.5, opacity: 0.7 },
+  'Intermunicipal': { color: '#9ca3af', weight: 0.5, opacity: 0.7 },
+};
+
+function getScopeFeatures(scope) {
+  const idx   = ENTORNO_ORDER.indexOf(scope);
+  const valid = new Set(ENTORNO_ORDER.slice(0, idx + 1));
+  return hexData.features.filter(f => valid.has(f.properties.entorno));
+}
+
+// Paleta YlOrRd (5 clases)
+const PALETTE  = ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026'];
+const COLOR_ND = '#d1d5db';
+const SHARED_BREAKS_GROUPS = ["Grupos de edad"];
+const PCT_TO_ABS = {
+  pct_0_14: 'pob_0_14', pct_15_17: 'pob_15_17', pct_18_24: 'pob_18_24',
+  pct_25_29: 'pob_25_29', pct_30_49: 'pob_30_49', pct_50_59: 'pob_50_59', pct_60_mas: 'pob_60_mas',
+};
+
+// ─────────────────────────────────────────────────────────
+// ESTADO GLOBAL
+// ─────────────────────────────────────────────────────────
+let currentVar   = 'pob_total';
+let currentScope = 'Local';
+let hexData      = null;
+let hexLayer     = null;
+let pilaresLayer = null;
+let estacLayer   = null;
+let cdtLayer     = null;
+const ueLayers   = {};
+let classBreaks    = [];
+let sharedBreaks   = {};
+let compareChart   = null;
+let entornosLayer  = null;
+
+const UE_CATS = [
+  { key: 'Apoyo a negocios y emprendimiento',               color: '#f59e0b', id: 'ue-apoyo'       },
+  { key: 'Diseño y economía creativa',                      color: '#8b5cf6', id: 'ue-diseno'      },
+  { key: 'Educación y capacitación',                        color: '#3b82f6', id: 'ue-educacion'   },
+  { key: 'Manufactura tecnológica e industria avanzada',    color: '#ef4444', id: 'ue-manufactura' },
+  { key: 'Servicios profesionales, científicos y técnicos', color: '#14b8a6', id: 'ue-servicios'   },
+  { key: 'Tecnología, informática y telecomunicaciones',    color: '#6366f1', id: 'ue-tecnologia'  },
+];
+
+// ─────────────────────────────────────────────────────────
+// MAPA
+// ─────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [19.482, -99.175], zoom: 13,
+  zoomControl: true, renderer: L.canvas({ tolerance: 2 }),
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd', maxZoom: 20,
+}).addTo(map);
+
+L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+
+// ─────────────────────────────────────────────────────────
+// CARGA DE DATOS
+// ─────────────────────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [hex, pilares, estaciones, cdit, ue] = await Promise.all([
+      fetch('datos/hexagonos_censo_pct_zecditvallejo.geojson').then(r => r.json()),
+      fetch('datos/pilares.geojson').then(r => r.json()),
+      fetch('datos/estaciones_transporte_publico.geojson').then(r => r.json()),
+      fetch('datos/ubicacion_ceditvallejo.geojson').then(r => r.json()),
+      fetch('datos/unidades_economicas_cdit_2025.geojson').then(r => r.json()),
+    ]);
+
+    hexData = hex;
+    computeSharedBreaks();
+    addPilares(pilares);
+    addEstaciones(estaciones);
+    addCDIT(cdit);
+    addUE(ue);
+    refreshChoropleth(currentVar);
+
+    // Contornos de entorno: carga opcional (requiere ejecutar nb_entornos_hex.ipynb)
+    fetch('datos/entornos_contornos_zecditvallejo.geojson')
+      .then(r => { if (!r.ok) throw new Error('no encontrado'); return r.json(); })
+      .then(entornos => addEntornos(entornos))
+      .catch(() => {
+        console.warn('entornos_contornos_zecditvallejo.geojson no disponible. Ejecuta el notebook para generarlo.');
+        const togLabel = document.getElementById('tog-entornos')?.closest('label');
+        if (togLabel) togLabel.style.opacity = '0.4';
+        const togCb = document.getElementById('tog-entornos');
+        if (togCb) { togCb.checked = false; togCb.disabled = true; }
+      });
+
+    if (hexLayer) map.fitBounds(hexLayer.getBounds(), { padding: [10, 10] });
+    document.getElementById('loading').style.display = 'none';
+  } catch (err) {
+    console.error(err);
+    document.getElementById('loading').innerHTML =
+      '<p style="color:#dc2626;padding:16px;text-align:center;">Error al cargar datos.<br/>Revisa la consola del navegador.</p>';
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// BREAKS COMPARTIDOS
+// ─────────────────────────────────────────────────────────
+function computeSharedBreaks() {
+  for (const groupName of SHARED_BREAKS_GROUPS) {
+    const vars = VARIABLES[groupName]; if (!vars) continue;
+    const pooled = [];
+    for (const varKey of Object.keys(vars))
+      for (const f of hexData.features) {
+        const v = f.properties[varKey];
+        if (v != null && !isNaN(v)) pooled.push(v);
+      }
+    sharedBreaks[groupName] = quantileBreaks(pooled);
+  }
+}
+
+function getGroupForVar(varKey) {
+  for (const [g, vars] of Object.entries(VARIABLES)) if (vars[varKey]) return g;
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────
+// COROPLÉTICO
+// ─────────────────────────────────────────────────────────
+function quantileBreaks(vals, n = 5) {
+  const sorted = vals.filter(v => v != null && !isNaN(v)).sort((a, b) => a - b);
+  if (!sorted.length) return [];
+  const bk = [sorted[0]];
+  for (let i = 1; i <= n; i++) {
+    const idx = Math.round((i / n) * sorted.length) - 1;
+    bk.push(sorted[Math.min(Math.max(idx, 0), sorted.length - 1)]);
+  }
+  return bk;
+}
+
+function colorFor(val, bk) {
+  if (val == null || isNaN(val)) return COLOR_ND;
+  for (let i = bk.length - 2; i >= 0; i--)
+    if (val >= bk[i]) return PALETTE[Math.min(i, PALETTE.length - 1)];
+  return PALETTE[0];
+}
+
+function refreshChoropleth(varKey) {
+  if (hexLayer) { map.removeLayer(hexLayer); hexLayer = null; }
+  if (!hexData) return;
+
+  const vals  = hexData.features.map(f => f.properties[varKey]);
+  const group = getGroupForVar(varKey);
+  classBreaks = (group && sharedBreaks[group]) ? sharedBreaks[group] : quantileBreaks(vals);
+
+  const togHex      = document.getElementById('tog-hex');
+  const opSlider    = document.getElementById('opacity-hex');
+  const fillOpacity = opSlider ? opSlider.value / 100 : 0.82;
+
+  hexLayer = L.geoJSON(hexData, {
+    style: f => {
+      const b = ENTORNO_BORDER[f.properties.entorno] || { color: '#555', weight: 1.0, opacity: 0.6 };
+      return {
+        fillColor: colorFor(f.properties[varKey], classBreaks),
+        weight: b.weight, color: b.color, opacity: b.opacity, fillOpacity,
+      };
+    },
+    onEachFeature: (f, layer) => {
+      const p     = f.properties;
+      const v     = p[varKey];
+      const lbl   = varLabel(varKey);
+      const isPct = varIsPct(varKey);
+      const fmt   = (v != null && !isNaN(v)) ? fmtVal(v, isPct) : 'Sin dato';
+      const absKey  = PCT_TO_ABS[varKey];
+      const absLine = absKey ? (() => {
+        const av = p[absKey];
+        return `Personas: <strong>${(av != null && !isNaN(av)) ? fmtVal(av, false) : 'Sin dato'}</strong><br/>`;
+      })() : '';
+      layer.bindTooltip(
+        `<strong>${lbl}</strong><br/>` +
+        `Valor: <strong>${fmt}</strong><br/>` + absLine +
+        `<span style="color:#6b7280;font-size:10px;">Entorno: <strong>${p.entorno || '—'}</strong> · id: ${p.id}</span>`,
+        { sticky: true }
+      );
+    },
+  });
+
+  if (togHex?.checked !== false) hexLayer.addTo(map);
+  if (entornosLayer) entornosLayer.bringToFront();
+  Object.values(ueLayers).forEach(l => l.bringToFront());
+  if (pilaresLayer)  pilaresLayer.bringToFront();
+  if (estacLayer)    estacLayer.bringToFront();
+
+  refreshLegend(varKey, classBreaks);
+  refreshStats(varKey);
+}
+
+// ─────────────────────────────────────────────────────────
+// LEYENDA
+// ─────────────────────────────────────────────────────────
+function refreshLegend(varKey, bk) {
+  document.getElementById('legend-title').textContent = varLabel(varKey);
+  const container = document.getElementById('legend-items');
+  container.innerHTML = '';
+  const isPct = varIsPct(varKey);
+  for (let i = 0; i < PALETTE.length; i++) {
+    const from = bk[i], to = bk[i + 1];
+    if (from == null || to == null) continue;
+    const el = document.createElement('div');
+    el.className = 'legend-item';
+    el.innerHTML = `<div class="legend-swatch" style="background:${PALETTE[i]};"></div>
+                    <span class="legend-label">${fmtVal(from, isPct)} – ${fmtVal(to, isPct)}</span>`;
+    container.appendChild(el);
+  }
+  const nd = document.createElement('div');
+  nd.className = 'legend-item';
+  nd.innerHTML = `<div class="legend-swatch" style="background:${COLOR_ND};border:1px solid #d1d5db;"></div>
+                  <span class="legend-label">Sin dato</span>`;
+  container.appendChild(nd);
+}
+
+// ─────────────────────────────────────────────────────────
+// ESTADÍSTICOS POR ENTORNO (acumulativos)
+// ─────────────────────────────────────────────────────────
+// Para variables pct: media ponderada por pob_total
+// Para variables absolutas: suma
+function aggregateVar(features, varKey, isPct) {
+  if (isPct) {
+    let sumWV = 0, sumW = 0;
+    for (const f of features) {
+      const v = f.properties[varKey], w = f.properties['pob_total'];
+      if (v == null || isNaN(v) || w == null || isNaN(w) || w === 0) continue;
+      sumWV += v * w; sumW += w;
+    }
+    if (sumW > 0) return +(sumWV / sumW).toFixed(2);
+    // fallback: media aritmética
+    const vals = features.map(f => f.properties[varKey]).filter(v => v != null && !isNaN(v));
+    return vals.length ? +(vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : null;
+  } else {
+    const vals = features.map(f => f.properties[varKey]).filter(v => v != null && !isNaN(v));
+    return vals.length ? vals.reduce((s, v) => s + v, 0) : null;
+  }
+}
+
+function refreshStats(varKey) {
+  if (!hexData) return;
+  const isPct = varIsPct(varKey);
+  document.getElementById('stats-varname').textContent = varLabel(varKey);
+
+  // Columna de conteo crudo para la tarjeta "Valor neto"
+  // pct_*  → RAW_KEY lookup | absoluta (no densidad) → la misma columna | den_pob_ha → pob_total
+  const rawKey    = isPct ? (RAW_KEY[varKey] ?? null) : (varKey !== 'den_pob_ha' ? varKey : null);
+  const rawSumKey = rawKey ?? 'pob_total';
+  const rawLbl    = rawKey && rawKey !== 'pob_total' ? 'Valor neto (suma)' : 'Pob. total (suma)';
+
+  // Calcular para los 3 scopes acumulativos
+  const scopeData = ENTORNO_ORDER.map(scope => {
+    const feats  = getScopeFeatures(scope);
+    const val    = aggregateVar(feats, varKey, isPct);
+    const rawSum = feats.reduce((s, f) => {
+      const v = f.properties[rawSumKey]; return s + (v != null && !isNaN(v) ? v : 0);
+    }, 0);
+    return { scope, n: feats.length, val, rawSum };
+  });
+
+  renderScopeStats(scopeData, varKey, isPct, rawLbl);
+  renderCompareChart(scopeData, isPct);
+}
+
+function renderScopeStats(scopeData, varKey, isPct, rawLbl) {
+  const entry = scopeData.find(s => s.scope === currentScope);
+  if (!entry) return;
+
+  document.getElementById('scope-note').textContent = ENTORNO_NOTES[currentScope];
+  document.getElementById('stats-content').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-lbl">Hexágonos incluidos</div>
+        <div class="stat-val sm">${entry.n.toLocaleString('es-MX')}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-lbl">${rawLbl}</div>
+        <div class="stat-val sm">${entry.rawSum.toLocaleString('es-MX', {maximumFractionDigits:0})}</div>
+      </div>
+      <div class="stat-card wide">
+        <div class="stat-lbl">${isPct ? 'Media pond. por pob.' : 'Total (suma)'}</div>
+        <div class="stat-val">${entry.val != null ? fmtVal(entry.val, isPct) : 'N/D'}</div>
+      </div>
+    </div>
+    ${isPct ? `<p style="margin:6px 12px 2px;font-size:10px;color:#6b7280;line-height:1.4;">
+      <em>La media ponderada por población permite reflejar mejor la realidad del área de estudio,
+      al otorgar mayor peso a los territorios con mayor número de habitantes. De este modo,
+      las zonas poco pobladas —que de otra forma podrían distorsionar el resultado—
+      tienen una influencia proporcional a su tamaño demográfico.</em>
+    </p>` : ''}
+  `;
+  document.getElementById('chart-section').style.display = '';
+}
+
+function renderCompareChart(scopeData, isPct) {
+  const ctx = document.getElementById('compare-canvas').getContext('2d');
+  if (compareChart) { compareChart.destroy(); compareChart = null; }
+
+  compareChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: scopeData.map(s => s.scope),
+      datasets: [{
+        data:            scopeData.map(s => s.val ?? 0),
+        backgroundColor: scopeData.map(s => (ENTORNO_COLORS[s.scope] || '#6b7280') + 'cc'),
+        borderColor:     scopeData.map(s =>  ENTORNO_COLORS[s.scope] || '#6b7280'),
+        borderWidth: 1.5, borderRadius: 4,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: item => ` ${fmtVal(item.parsed.y, isPct)}` } },
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { font: { size: 9 } }, title: { display: true, text: isPct ? '%' : 'valor', font: { size: 9 } } },
+      },
+    },
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+// CAPA CONTORNOS DE ENTORNO (Opción D)
+// ─────────────────────────────────────────────────────────
+function addEntornos(data) {
+  entornosLayer = L.geoJSON(data, {
+    style: f => {
+      const ENTORNO_WEIGHT = { 'Local': 16, 'Barrio': 2.5, 'Intermunicipal': 1.5 };
+      return {
+        color: '#000000',
+        weight: ENTORNO_WEIGHT[f.properties.entorno] || 1,
+        opacity: 0.85,
+        fillOpacity: 0,        // sin relleno: solo el contorno
+        dashArray: null,
+      };
+    },
+    onEachFeature: (f, layer) => {
+      layer.bindTooltip(
+        `<strong style="color:${ENTORNO_COLORS[f.properties.entorno]};">
+          Entorno: ${f.properties.entorno}
+        </strong>`,
+        { sticky: true }
+      );
+    },
+  }).addTo(map);
+}
+
+// ─────────────────────────────────────────────────────────
+// CAPAS DE PUNTOS
+// ─────────────────────────────────────────────────────────
+function addUE(data) {
+  for (const cat of UE_CATS) {
+    const features = data.features.filter(f => f.properties.categoria_cdit === cat.key);
+    if (!features.length) continue;
+    ueLayers[cat.id] = L.geoJSON({ type: 'FeatureCollection', features }, {
+      pointToLayer: (f, ll) => L.circleMarker(ll, {
+        radius: 4, fillColor: cat.color, color: '#fff', weight: 0.8, fillOpacity: 0.85,
+      }),
+      onEachFeature: (f, layer) => {
+        const p = f.properties;
+        layer.bindPopup(
+          `<strong style="color:#0f2942;font-size:12px;">${p.nom_estab || '—'}</strong><br/>` +
+          `<span style="color:#6b7280;font-size:10px;">${p.categoria_cdit || '—'}</span><br/>` +
+          `<span style="font-size:11px;">Personal ocupado: <strong>${p.per_ocu || '—'}</strong></span>`
+        );
+      },
+    }).addTo(map);
+  }
+}
+
+function addCDIT(data) {
+  const cdtIcon = L.divIcon({
+    html: `<div style="width:44px;height:44px;background:#fff;border:2.5px solid #111;border-radius:50%;
+        box-shadow:0 2px 8px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;">
+        <img src="https://gobierno.cdmx.gob.mx/wp-content/uploads/2021/11/iconos-35.png"
+             style="width:32px;height:32px;object-fit:contain;" />
+      </div>`,
+    iconSize: [44,44], iconAnchor: [22,22], popupAnchor: [0,-26], className: '',
+  });
+  cdtLayer = L.geoJSON(data, {
+    pointToLayer: (f, ll) => L.marker(ll, { icon: cdtIcon, zIndexOffset: 99999 }),
+    onEachFeature: (f, layer) => layer.bindPopup(`<strong style="color:#0f2942;">${f.properties.nombre}</strong>`),
+  }).addTo(map);
+}
+
+function addPilares(data) {
+  pilaresLayer = L.geoJSON(data, {
+    pointToLayer: (f, ll) => L.marker(ll, {
+      icon: L.divIcon({
+        className: '',
+        html: `<div style="width:20px;height:20px;border-radius:50%;background:#7b1728;border:2px solid #fff;
+          box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;
+          font-size:11px;font-weight:700;color:#fff;font-family:'Segoe UI',system-ui,sans-serif;">P</div>`,
+        iconSize: [20,20], iconAnchor: [10,10], popupAnchor: [0,-12],
+      }),
+    }),
+    onEachFeature: (f, layer) => {
+      const p = f.properties;
+      layer.bindPopup(
+        `<strong style="color:#7b1728;">🏛 PILAR: ${p.nombre}</strong><br/>` +
+        `<em>${p.alcaldia}</em><br/>${p.direccion}<br/>` +
+        `<span style="color:#6b7280;font-size:11px;">Horario: ${p.horario}</span>`
+      );
+    },
+  }).addTo(map);
+}
+
+function addEstaciones(data) {
+  function makeLogoIcon(src) {
+    return L.divIcon({
+      className: '',
+      html: `<img src="${src}" style="width:20px;height:20px;object-fit:contain;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4));" />`,
+      iconSize: [20,20], iconAnchor: [10,10], popupAnchor: [0,-13],
+    });
+  }
+  const metroIcon    = makeLogoIcon('datos/logo_metro_cdmx.svg');
+  const metrobusIcon = makeLogoIcon('datos/logo_metrobus_cdmx.svg');
+
+  estacLayer = L.geoJSON(data, {
+    pointToLayer: (f, ll) => {
+      const p = f.properties;
+      if (p.SISTEMA === 'STC Metro') return L.marker(ll, { icon: metroIcon });
+      if (p.SISTEMA === 'Metrobús')  return L.marker(ll, { icon: metrobusIcon });
+      if (p.tipo === 'CETRAM')       return L.circleMarker(ll, { radius:5, fillColor:'#dc2626', color:'#fff', weight:1.5, fillOpacity:0.9 });
+      if (p.tipo === 'Tren Suburbano') return L.circleMarker(ll, { radius:5, fillColor:'#1d4ed8', color:'#fff', weight:1.5, fillOpacity:0.9 });
+      return L.circleMarker(ll, { radius:3, fillColor:'#6b7280', color:'#fff', weight:1, fillOpacity:0.7 });
+    },
+    onEachFeature: (f, layer) => {
+      const p = f.properties;
+      layer.bindPopup(
+        `<strong style="color:#0f2942;">${p.NOMBRE || p.estacion || '—'}</strong><br/>` +
+        (p.SISTEMA ? `<span style="color:#6b7280;font-size:10px;">${p.SISTEMA}</span><br/>` : '') +
+        (p.tipo    ? `<strong>${p.tipo}</strong><br/>` : '') +
+        (p.ruta    ? `Ruta: ${p.ruta}<br/>` : '')
+      );
+    },
+  }).addTo(map);
+}
+
+// ─────────────────────────────────────────────────────────
+// PANEL DE VARIABLES
+// ─────────────────────────────────────────────────────────
+function buildVarPanel() {
+  const container = document.getElementById('var-groups');
+  for (const [group, vars] of Object.entries(VARIABLES)) {
+    const wrap = document.createElement('div'); wrap.className = 'var-group';
+    const title = document.createElement('div'); title.className = 'var-group-title';
+    title.innerHTML = `${group} <span class="arrow">▼</span>`;
+    const list = document.createElement('div'); list.className = 'var-list';
+    title.addEventListener('click', () => {
+      const col = list.style.display === 'none';
+      list.style.display = col ? '' : 'none';
+      title.classList.toggle('collapsed', !col);
+    });
+    for (const [key, def] of Object.entries(vars)) {
+      const item = document.createElement('div');
+      item.className = 'var-item' + (key === currentVar ? ' active' : '');
+      item.dataset.key = key;
+      item.innerHTML = `<span class="var-dot"></span><span>${def.label}</span>`;
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.var-item').forEach(el => el.classList.remove('active'));
+        item.classList.add('active');
+        currentVar = key;
+        refreshChoropleth(key);
+      });
+      list.appendChild(item);
+    }
+    wrap.appendChild(title); wrap.appendChild(list); container.appendChild(wrap);
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// TOGGLES
+// ─────────────────────────────────────────────────────────
+document.getElementById('tog-hex').addEventListener('change', function () {
+  this.checked ? hexLayer?.addTo(map) : map.removeLayer(hexLayer);
+});
+document.getElementById('tog-entornos').addEventListener('change', function () {
+  this.checked ? entornosLayer?.addTo(map) : map.removeLayer(entornosLayer);
+});
+document.getElementById('opacity-hex').addEventListener('input', function () {
+  document.getElementById('opacity-hex-val').textContent = this.value + '%';
+  if (hexLayer) hexLayer.setStyle({ fillOpacity: this.value / 100 });
+});
+
+function syncUEMaster() {
+  const states = UE_CATS.map(c => document.getElementById(c.id)?.checked ?? true);
+  const master = document.getElementById('tog-ue');
+  master.checked = states.every(Boolean);
+  master.indeterminate = !master.checked && states.some(Boolean);
+}
+document.getElementById('tog-ue').addEventListener('change', function () {
+  document.getElementById('ue-legend').style.display = this.checked ? '' : 'none';
+  UE_CATS.forEach(cat => {
+    const cb = document.getElementById(cat.id); if (cb) cb.checked = this.checked;
+    const l = ueLayers[cat.id]; if (!l) return;
+    this.checked ? l.addTo(map) : map.removeLayer(l);
+  });
+});
+UE_CATS.forEach(cat => {
+  document.getElementById(cat.id)?.addEventListener('change', function () {
+    const l = ueLayers[cat.id];
+    if (l) { this.checked ? l.addTo(map) : map.removeLayer(l); }
+    syncUEMaster();
+  });
+});
+
+document.getElementById('tog-cdit').addEventListener('change', function () {
+  this.checked ? cdtLayer?.addTo(map) : map.removeLayer(cdtLayer);
+});
+document.getElementById('tog-pilares').addEventListener('change', function () {
+  this.checked ? pilaresLayer?.addTo(map) : map.removeLayer(pilaresLayer);
+});
+document.getElementById('tog-estaciones').addEventListener('change', function () {
+  if (this.checked) {
+    estacLayer?.addTo(map);
+    document.getElementById('estaciones-legend').style.display = '';
+  } else {
+    map.removeLayer(estacLayer);
+    document.getElementById('estaciones-legend').style.display = 'none';
+  }
+});
+
+// Tabs de entorno
+document.getElementById('entorno-tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.entorno-tab');
+  if (!tab) return;
+  document.querySelectorAll('.entorno-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  currentScope = tab.dataset.scope;
+  if (hexData) refreshStats(currentVar);
+});
+
+// Colapso secciones panel
+['capas-base', 'capas-tematicas'].forEach(id => {
+  const hdr = document.getElementById(`hdr-${id}`);
+  const sec = document.getElementById(`section-${id}`);
+  hdr.addEventListener('click', () => {
+    const col = sec.style.display === 'none';
+    sec.style.display = col ? '' : 'none';
+    hdr.classList.toggle('collapsed', !col);
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+// UTILIDADES
+// ─────────────────────────────────────────────────────────
+function varLabel(key) {
+  for (const vars of Object.values(VARIABLES)) if (vars[key]) return vars[key].label;
+  return key;
+}
+function varIsPct(key) {
+  for (const vars of Object.values(VARIABLES)) if (vars[key]) return vars[key].pct;
+  return false;
+}
+function fmtVal(val, isPct) {
+  if (val == null || isNaN(val)) return 'N/D';
+  if (isPct) return val.toLocaleString('es-MX', { minimumFractionDigits:1, maximumFractionDigits:1 }) + ' %';
+  return val.toLocaleString('es-MX', { minimumFractionDigits:0, maximumFractionDigits:0 });
+}
+
+// ─────────────────────────────────────────────────────────
+// ARRANQUE
+// ─────────────────────────────────────────────────────────
+buildVarPanel();
+loadAll();
+</script>
+</body>
+</html>
