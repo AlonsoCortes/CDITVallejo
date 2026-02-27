@@ -368,8 +368,7 @@
 const VARIABLES = {
   "Población general": {
     pob_total:  { label: "Población total",           pct: false },
-    pct_fem:    { label: "% Población femenina",      pct: true  },
-    pct_masc:   { label: "% Población masculina",     pct: true  },
+    ratio_sexo: { label: "Ratio de sexo (H/M×100)",   pct: false },
     den_pob_ha: { label: "Densidad de pob. (hab/ha)", pct: false },
   },
   "Grupos de edad": {
@@ -418,7 +417,6 @@ const VARIABLES = {
 
 // Mapeo pct_* → columna de conteo crudo en el GeoJSON
 const RAW_KEY = {
-  pct_fem: 'pob_fem', pct_masc: 'pob_masc',
   pct_0_14: 'pob_0_14', pct_15_17: 'pob_15_17', pct_18_24: 'pob_18_24',
   pct_25_29: 'pob_25_29', pct_30_49: 'pob_30_49', pct_50_59: 'pob_50_59', pct_60_mas: 'pob_60_mas',
   pct_alfabeta: 'pob_alfabeta', pct_analfabeta: 'pob_analfabeta',
@@ -667,6 +665,15 @@ function refreshLegend(varKey, bk) {
 // Para variables pct: media ponderada por pob_total
 // Para variables absolutas: suma
 function aggregateVar(features, varKey, isPct) {
+  // ratio_sexo: calcular desde conteos crudos (pob_masc / pob_fem × 100)
+  if (varKey === 'ratio_sexo') {
+    let sumMasc = 0, sumFem = 0;
+    for (const f of features) {
+      const m = f.properties['pob_masc'], fe = f.properties['pob_fem'];
+      if (m != null && !isNaN(m) && fe != null && !isNaN(fe)) { sumMasc += m; sumFem += fe; }
+    }
+    return sumFem > 0 ? +((sumMasc / sumFem) * 100).toFixed(2) : null;
+  }
   if (isPct) {
     let sumWV = 0, sumW = 0;
     for (const f of features) {
@@ -691,7 +698,8 @@ function refreshStats(varKey) {
 
   // Columna de conteo crudo para la tarjeta "Valor neto"
   // pct_*  → RAW_KEY lookup | absoluta (no densidad) → la misma columna | den_pob_ha → pob_total
-  const rawKey    = isPct ? (RAW_KEY[varKey] ?? null) : (varKey !== 'den_pob_ha' ? varKey : null);
+  const VARS_RATIO = new Set(['den_pob_ha', 'ratio_sexo']);
+  const rawKey    = isPct ? (RAW_KEY[varKey] ?? null) : (!VARS_RATIO.has(varKey) ? varKey : null);
   const rawSumKey = rawKey ?? 'pob_total';
   const rawLbl    = rawKey && rawKey !== 'pob_total' ? 'Valor neto (suma)' : 'Pob. total (suma)';
 
@@ -725,7 +733,7 @@ function renderScopeStats(scopeData, varKey, isPct, rawLbl) {
         <div class="stat-val sm">${entry.rawSum.toLocaleString('es-MX', {maximumFractionDigits:0})}</div>
       </div>
       <div class="stat-card wide">
-        <div class="stat-lbl">${isPct ? 'Media pond. por pob.' : 'Total (suma)'}</div>
+        <div class="stat-lbl">${isPct ? 'Media pond. por pob.' : (varKey === 'ratio_sexo' || varKey === 'den_pob_ha' ? 'Valor calculado' : 'Total (suma)')}</div>
         <div class="stat-val">${entry.val != null ? fmtVal(entry.val, isPct) : 'N/D'}</div>
       </div>
     </div>
