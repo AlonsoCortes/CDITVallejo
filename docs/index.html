@@ -299,10 +299,10 @@
             <img src="datos/logo_metrobus_cdmx.svg" style="width:12px;height:12px;object-fit:contain;flex-shrink:0;" /> Metrob&uacute;s
           </div>
           <div class="pt-legend-row">
-            <span class="pt-dot" style="width:8px;height:8px;background:#dc2626;"></span> CETRAM
+            <img src="datos/logo_tren_suburbano_cdmx.png" style="width:12px;height:12px;object-fit:contain;flex-shrink:0;" /> Tren Suburbano
           </div>
           <div class="pt-legend-row">
-            <span class="pt-dot" style="width:8px;height:8px;background:#1d4ed8;"></span> Tren Suburbano
+            <img src="datos/logo_rtp_cdmx.svg" style="width:8px;height:8px;object-fit:contain;flex-shrink:0;" /> R.T.P.
           </div>
         </div>
 
@@ -679,6 +679,15 @@ function aggregateVar(features, varKey, isPct) {
     }
     return sumFem > 0 ? +((sumMasc / sumFem) * 100).toFixed(2) : null;
   }
+  // den_pob_ha: densidad real del entorno = pob_total_suma / area_ha_suma
+  if (varKey === 'den_pob_ha') {
+    let sumPob = 0, sumArea = 0;
+    for (const f of features) {
+      const p = f.properties['pob_total'], a = f.properties['area_ha'];
+      if (p != null && !isNaN(p) && a != null && !isNaN(a) && a > 0) { sumPob += p; sumArea += a; }
+    }
+    return sumArea > 0 ? +(sumPob / sumArea).toFixed(1) : null;
+  }
   if (isPct) {
     let sumWV = 0, sumW = 0;
     for (const f of features) {
@@ -735,7 +744,7 @@ function renderScopeStats(scopeData, varKey, isPct, rawLbl) {
         <div class="stat-val sm">${entry.rawSum.toLocaleString('es-MX', {maximumFractionDigits:0})}</div>
       </div>
       <div class="stat-card wide">
-        <div class="stat-lbl">${isPct ? 'Media pond. por pob.' : (varKey === 'ratio_sexo' || varKey === 'den_pob_ha' ? 'Valor calculado' : 'Total (suma)')}</div>
+        <div class="stat-lbl">${isPct ? 'Media pond. por pob.' : varKey === 'den_pob_ha' ? 'Densidad real (hab/ha)' : varKey === 'ratio_sexo' ? 'Valor calculado' : 'Total (suma)'}</div>
         <div class="stat-val">${entry.val != null ? fmtVal(entry.val, isPct) : 'N/D'}</div>
       </div>
     </div>
@@ -862,23 +871,25 @@ function addPilares(data) {
 }
 
 function addEstaciones(data) {
-  function makeLogoIcon(src) {
+  function makeLogoIcon(src, size) {
     return L.divIcon({
       className: '',
-      html: `<img src="${src}" style="width:20px;height:20px;object-fit:contain;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4));" />`,
-      iconSize: [20,20], iconAnchor: [10,10], popupAnchor: [0,-13],
+      html: `<img src="${src}" style="width:${size}px;height:${size}px;object-fit:contain;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4));" />`,
+      iconSize: [size,size], iconAnchor: [size/2,size/2], popupAnchor: [0,-size/2-3],
     });
   }
-  const metroIcon    = makeLogoIcon('datos/logo_metro_cdmx.svg');
-  const metrobusIcon = makeLogoIcon('datos/logo_metrobus_cdmx.svg');
+  const metroIcon    = makeLogoIcon('datos/logo_metro_cdmx.svg', 20);
+  const metrobusIcon = makeLogoIcon('datos/logo_metrobus_cdmx.svg', 20);
+  const trenIcon     = makeLogoIcon('datos/logo_tren_suburbano_cdmx.png', 20);
+  const rtpIcon      = makeLogoIcon('datos/logo_rtp_cdmx.svg', 8);
 
   estacLayer = L.geoJSON(data, {
     pointToLayer: (f, ll) => {
       const p = f.properties;
-      if (p.SISTEMA === 'STC Metro') return L.marker(ll, { icon: metroIcon });
-      if (p.SISTEMA === 'Metrobús')  return L.marker(ll, { icon: metrobusIcon });
-      if (p.tipo === 'CETRAM')       return L.circleMarker(ll, { radius:5, fillColor:'#dc2626', color:'#fff', weight:1.5, fillOpacity:0.9 });
-      if (p.tipo === 'Tren Suburbano') return L.circleMarker(ll, { radius:5, fillColor:'#1d4ed8', color:'#fff', weight:1.5, fillOpacity:0.9 });
+      if (p.SISTEMA === 'STC Metro')      return L.marker(ll, { icon: metroIcon });
+      if (p.SISTEMA === 'Metrobús')       return L.marker(ll, { icon: metrobusIcon });
+      if (p.SISTEMA === 'Tren Suburbano') return L.marker(ll, { icon: trenIcon });
+      if (p.SISTEMA === 'R.T.P.')         return L.marker(ll, { icon: rtpIcon });
       return L.circleMarker(ll, { radius:3, fillColor:'#6b7280', color:'#fff', weight:1, fillOpacity:0.7 });
     },
     onEachFeature: (f, layer) => {
