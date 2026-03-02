@@ -507,7 +507,7 @@ L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
 async function loadAll() {
   try {
     const [mzn, pilares, estaciones, cdit, ue] = await Promise.all([
-      fetch('datos/manzanas_censo_pct_zecditvallejo.geojson').then(r => r.json()),
+      fetch('datos/manzanas_censo_pct_zecditvallejo_entorno.geojson').then(r => r.json()),
       fetch('datos/pilares.geojson').then(r => r.json()),
       fetch('datos/estaciones_transporte_publico.geojson').then(r => r.json()),
       fetch('datos/ubicacion_ceditvallejo.geojson').then(r => r.json()),
